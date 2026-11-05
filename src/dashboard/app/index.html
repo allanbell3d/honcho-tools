@@ -1,0 +1,1763 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Honcho control</title>
+<style>
+:root {
+  --bg:#ECEEF0; --pane:#F3F4F6; --page:#FFFFFF; --ink:#1B2227; --muted:#66717B; --faint:#97A1AA; --line:#CDD3D9;
+  --soft:#E3E7EA; --hover:#F1F3F5; --head:#EEF0F2; --accent:#0C6C76; --accent-bg:#DDEFF1; --on-accent:#FFFFFF;
+  --amber:#A05E00; --amber-edge:#DE9A1F; --amber-bg:#FBF0DA; --ok:#2A7D50; --bad:#B3342B; --bad-bg:#F9E3E1; --add:#E0F3E6; --del:#FAE4E2;
+  --sans:"Segoe UI Variable Text","Segoe UI","Helvetica Neue",Arial,sans-serif; --mono:"Cascadia Mono","Cascadia Code",Consolas,Menlo,monospace;
+}
+:root[data-theme="dark"] {
+  --bg:#13171A; --pane:#181D21; --page:#1D2327; --ink:#DBE1E5; --muted:#8E99A3; --faint:#65727C; --line:#3A444C;
+  --soft:#2B343A; --hover:#242B30; --head:#222A2F; --accent:#62C6D1; --accent-bg:#17373C; --on-accent:#082125;
+  --amber:#E8AE55; --amber-edge:#D4952F; --amber-bg:#372B13; --ok:#63C58B; --bad:#EF8C84; --bad-bg:#42211F; --add:#1B3625; --del:#41201E;
+}
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:13px/1.45 var(--sans); }
+header { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:8px; padding:8px 14px; background:var(--pane); border-bottom:1px solid var(--line); }
+header .brand { font-weight:700; font-size:14px; }
+header .grow { flex:1; }
+.layout { display:flex; min-height:calc(100vh - 76px); }
+nav { width:150px; flex:none; padding:12px 8px; background:var(--pane); border-right:1px solid var(--line); }
+nav a { display:block; padding:6px 10px; margin-bottom:2px; border-radius:5px; color:var(--ink); text-decoration:none; white-space:nowrap; }
+nav a:hover { background:var(--hover); }
+nav a.on { background:var(--accent-bg); color:var(--accent); font-weight:600; }
+main { flex:1; min-width:0; padding:16px 20px 70px; max-width:1180px; }
+h1 { font-size:20px; font-weight:600; margin:0 0 4px; }
+.lead { color:var(--muted); margin:0 0 14px; }
+.box { background:var(--page); border:1px solid var(--line); border-radius:6px; margin-bottom:14px; }
+.box > h2 { font-size:15px; font-weight:600; margin:0; padding:10px 14px; border-bottom:1px solid var(--soft); }
+.box > .in { padding:12px 14px; }
+.hint { color:var(--muted); font-size:12px; }
+.warn { background:var(--amber-bg); border:1px solid var(--amber-edge); border-radius:5px; padding:8px 10px; margin:8px 0; }
+.err { background:var(--bad-bg); border:1px solid var(--bad); border-radius:5px; padding:8px 10px; margin:8px 0; }
+.tw { overflow-x:auto; }
+table { border-collapse:collapse; width:100%; }
+th { text-align:left; font-size:12px; font-weight:600; color:var(--muted); background:var(--head); padding:5px 6px; border-bottom:1px solid var(--line); white-space:nowrap; }
+td { padding:3px 4px; border-bottom:1px solid var(--soft); vertical-align:middle; }
+td.name { white-space:nowrap; }
+tr.defaults td { background:var(--pane); font-weight:600; }
+tr.off td.name, tr.off td.name button { color:var(--faint); }
+button { font:inherit; height:28px; padding:0 12px; border:1px solid var(--line); border-radius:5px; background:var(--page); color:var(--ink); cursor:pointer; white-space:nowrap; }
+button:hover { background:var(--hover); }
+button.pri { background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:600; }
+button.has { background:var(--amber-bg); border-color:var(--amber-edge); font-weight:600; }
+button.lnk { border:0; background:none; color:var(--accent); padding:0 4px; height:auto; }
+button.name { border:0; background:none; padding:0; height:auto; font-weight:600; color:var(--ink); }
+button.name:hover { color:var(--accent); }
+button:disabled { opacity:.5; cursor:default; }
+select, input[type=text], input[type=number] { font:inherit; height:28px; border:1px solid var(--line); border-radius:4px; background:var(--page); color:var(--ink); padding:0 6px; max-width:100%; }
+select:focus, input:focus, textarea:focus { outline:none; border-color:var(--accent); }
+select.inherit { color:var(--muted); font-style:italic; }
+select.changed, button.changed, input.changed { border-color:var(--amber-edge) !important; background:var(--amber-bg) !important; }
+input.inherit::placeholder { color:var(--muted); font-style:italic; }
+.stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+.stat { border:1px solid var(--line); border-radius:6px; padding:8px 10px; background:var(--page); }
+.stat .k { color:var(--muted); font-size:12px; } .stat .v { font-size:18px; font-weight:600; }
+button.pick { width:140px; height:26px; font-size:12px; text-align:left; overflow:hidden; text-overflow:ellipsis; padding:0 6px; }
+button.pick.inherit { color:var(--muted); font-style:italic; }
+option { color:var(--ink); background:var(--page); font-style:normal; }
+textarea { font:12.5px/1.5 var(--mono); width:100%; border:1px solid var(--line); border-radius:4px; background:var(--page); color:var(--ink); padding:8px; resize:vertical; }
+textarea:disabled { color:var(--faint); background:var(--pane); }
+pre.log { font:12px/1.45 var(--mono); background:var(--pane); border:1px solid var(--line); border-radius:4px; padding:8px; height:380px; overflow:auto; margin:0; white-space:pre-wrap; word-break:break-word; }
+pre.log.prompt { height:auto; max-height:60vh; }
+pre.log.prompt mark { background:var(--amber-bg); outline:1px solid var(--amber-edge); color:inherit; }
+.row { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:end; }
+.row label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); }
+.switch { display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none; white-space:nowrap; }
+.switch input { display:none; }
+.switch .track { width:32px; height:18px; border-radius:9px; background:var(--faint); position:relative; transition:.15s; flex:none; }
+.switch .track::after { content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#fff; transition:.15s; }
+.switch input:checked + .track { background:var(--ok); }
+.switch input:checked + .track::after { left:16px; }
+.switch .txt { font-size:12px; min-width:58px; }
+td .switch .txt { min-width:24px; }
+td select, td input[type=number] { font-size:12px; height:26px; padding:0 4px; }
+.box > .in.tw { padding:8px; }
+.switch.busy { opacity:.5; pointer-events:none; }
+.jobs { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+.job { border:1px solid var(--line); border-radius:6px; padding:12px; background:var(--page); }
+.job .name { font-weight:600; font-size:14px; }
+.job .what { color:var(--muted); font-size:12px; min-height:34px; }
+.state { font-size:18px; font-weight:700; margin:6px 0 2px; }
+.state.on { color:var(--ok); } .state.off { color:var(--bad); }
+.job .why { font-size:12px; color:var(--muted); min-height:18px; }
+.job button { margin-top:8px; }
+.modes { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
+.mode { border:1px solid var(--line); border-radius:6px; padding:10px 12px; cursor:pointer; display:block; }
+.mode.on { border-color:var(--accent); background:var(--accent-bg); }
+.tabs { display:flex; gap:4px; margin-bottom:10px; flex-wrap:wrap; }
+.tabs button.on { background:var(--accent-bg); border-color:var(--accent); color:var(--accent); font-weight:600; }
+.bulk { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px 10px; margin-bottom:8px; background:var(--pane); border:1px solid var(--line); border-radius:5px; }
+.levels { display:flex; flex-wrap:wrap; gap:6px 12px; }
+.levels label { display:flex; align-items:center; gap:4px; font-size:12px; color:var(--muted); }
+footer { position:fixed; bottom:0; left:0; right:0; display:flex; gap:12px; align-items:center; padding:6px 14px; background:var(--pane); border-top:1px solid var(--line); font-size:12px; color:var(--muted); z-index:4; }
+footer .grow { flex:1; }
+.ok { color:var(--ok); } .bad { color:var(--bad); }
+.modal { position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:flex-start; justify-content:center; padding:50px 12px; z-index:10; }
+.modal.show { display:flex; }
+.modal .panel { background:var(--page); border:1px solid var(--line); border-radius:6px; width:min(820px,100%); max-height:80vh; overflow:auto; padding:14px; position:relative; }
+.modal .x { position:absolute; top:8px; right:8px; }
+.diff td { font-family:var(--mono); font-size:12px; word-break:break-word; }
+.diff td.b { background:var(--del); } .diff td.a { background:var(--add); }
+.mono { font-family:var(--mono); }
+details > summary { cursor:pointer; color:var(--accent); margin:8px 0; }
+@media (max-width:1100px) {
+  .layout { display:block; }
+  nav { width:auto; display:flex; overflow-x:auto; padding:6px; border-right:0; border-bottom:1px solid var(--line); }
+  nav a { flex:none; }
+  main { padding:12px 12px 70px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">honcho-tools</span>
+  <span class="grow"></span>
+  <button id="review-btn" onclick="openReview()">Review (0)</button>
+  <button id="discard-btn" onclick="discardAll()" hidden>Discard</button>
+  <button id="theme-btn" onclick="toggleTheme()">Dark</button>
+</header>
+<div class="layout">
+  <nav id="nav"></nav>
+  <main id="main"></main>
+</div>
+<div class="modal" id="modal"><div class="panel" id="modal-panel"></div></div>
+<footer><span id="health">…</span><span class="grow"></span><span id="read-at"></span><button onclick="loadAll()">Refresh</button></footer>
+<script>
+"use strict";
+const PAGES = [["overview", "Overview"], ["models", "Models"], ["honcho", "Honcho config"], ["peers", "Peers"], ["pairs", "Pairs"], ["rerank", "Rerank"], ["runs", "Runs"], ["cost", "Cost"], ["instructions", "Instructions"], ["logs", "Logs"], ["advanced", "Advanced"]];
+const EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh", "max"];
+const effortOption = (e) => ({ value: e, label: e === "none" ? "none (thinking off)" : e });
+const BRIEFS = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500];
+const ROUNDS = [4, 8, 10, 12, 16, 20, 24, 32, 40, 50];
+const LEVELS = ["minimal", "low", "medium", "high", "max"];
+const S = {
+  settings0: null, settings: null, mtime: null, control: null, honcho: null, hIndex: {}, hEdits: {},
+  ws: { enabled: {}, instructions: {} }, instr: {}, catalogue: { dream: [], tasks: {}, backends: {} }, runtime: {},
+  peersApi: { discovered: [] }, status: null, containers: null, history: null, instructions: null,
+  page: "overview", instrTab: "dream", editor: null, selected: { peers: new Set(), pairs: new Set() }, notice: "", bulk: {},
+  promptMode: {}, busy: false,
+};
+
+// ---------- helpers ----------
+function h(tag, attrs, ...kids) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs || {})) {
+    if (value === undefined || value === null || value === false) continue;
+    if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+    else if (key === "class") node.className = value;
+    else if (key === "value") node.value = value;
+    else if (key === "checked") node.checked = !!value;
+    else node.setAttribute(key, value === true ? "" : value);
+  }
+  for (const kid of kids.flat(5)) if (kid !== null && kid !== undefined && kid !== false) node.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  return node;
+}
+const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+async function api(path, body) {
+  const options = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+  const response = await fetch(path, options);
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) { data = { detail: text }; }
+  if (!response.ok) { const d = data && data.detail; throw new Error(Array.isArray(d) ? d.join("; ") : (d || response.status + " " + response.statusText)); }
+  return data;
+}
+function when(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (isNaN(d)) return String(value).replace(/\.\d+/, "").replace("T", " ").replace("Z", "");
+  const p = (n) => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+}
+// For pages that say their times are UTC: the browser's own zone must not shift them.
+function whenUtc(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (isNaN(d)) return String(value).replace(/\.\d+/, "").replace("T", " ").replace("Z", "");
+  return d.toISOString().slice(0, 19).replace("T", " ");
+}
+function note(text, bad) { S.notice = text ? { text, bad } : ""; render(); }
+function getPath(o, path) { return path.split(".").reduce((n, k) => (n == null ? undefined : n[k]), o); }
+function setPath(o, path, value) {
+  const keys = path.split(".");
+  let n = o;
+  for (const k of keys.slice(0, -1)) { if (n[k] == null || typeof n[k] !== "object") n[k] = {}; n = n[k]; }
+  if (value === undefined) delete n[keys[keys.length - 1]]; else n[keys[keys.length - 1]] = value;
+}
+// A switch that writes at once: onchange returns a promise; the switch is disabled while it runs.
+function sw(checked, onText, offText, onchange, disabled) {
+  const label = h("label", { class: "switch" });
+  const input = h("input", { type: "checkbox", checked, disabled, onchange: async (e) => {
+    label.classList.add("busy");
+    try { await onchange(e.target.checked); } finally { label.classList.remove("busy"); }
+  } });
+  label.append(input, h("span", { class: "track" }), h("span", { class: "txt" }, checked ? onText : offText));
+  return label;
+}
+function choice(options, value, onchange, attrs) {
+  const select = h("select", Object.assign({ onchange: (e) => onchange(e.target.value) }, attrs || {}));
+  for (const o of options) {
+    if (o.group) select.append(h("optgroup", { label: o.group }, o.items.map((i) => h("option", { value: i.value }, i.label))));
+    else select.append(h("option", { value: o.value }, o.label));
+  }
+  const wanted = value == null ? "" : String(value);
+  select.value = wanted;
+  if (select.value !== wanted) { select.prepend(h("option", { value: wanted }, wanted + " (current)")); select.value = wanted; }
+  if (select.value === "") select.classList.add("inherit");
+  return select;
+}
+// Numbers: the empty choice shows where the value comes from ("350 · default"); "Other number…" swaps in an input.
+function numberChoice(list, value, inheritLabel, onchange, width) {
+  const options = [{ value: "", label: inheritLabel }].concat(list.map((n) => ({ value: String(n), label: String(n) })), [{ value: "__custom", label: "Other number…" }]);
+  const select = choice(options, value == null ? "" : value, (picked) => {
+    if (picked !== "__custom") return onchange(picked === "" ? null : Number(picked));
+    const input = h("input", { type: "number", min: 1, max: 1000, style: "width:" + width + "px", onchange: (e) => { const n = Number(e.target.value); if (n > 0) onchange(n); } });
+    select.replaceWith(input); input.focus();
+  }, { style: "width:" + width + "px" });
+  return select;
+}
+
+// ---------- changes waiting for Review ----------
+function settingsChanges() {
+  const out = [];
+  const walk = (a, b, path) => {
+    if (same(a, b)) return;
+    const oa = a && typeof a === "object" && !Array.isArray(a), ob = b && typeof b === "object" && !Array.isArray(b);
+    if (oa && ob) { for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) walk(a[k], b[k], path ? path + "." + k : k); return; }
+    out.push({ path, before: a, after: b });
+  };
+  walk(S.settings0 || {}, S.settings || {}, "");
+  return out;
+}
+function undoSettings(path) {
+  const keys = path.split(".");
+  const original = getPath(S.settings0, path);
+  if (original === undefined) { const parent = keys.length > 1 ? getPath(S.settings, keys.slice(0, -1).join(".")) : S.settings; if (parent) delete parent[keys[keys.length - 1]]; }
+  else setPath(S.settings, path, clone(original));
+}
+function changeList() {
+  const groups = [];
+  const settings = settingsChanges();
+  if (settings.length) groups.push({ file: "Dream settings", items: settings.map((c) => ({ label: plainPath(c.path), before: plainValue(c.path, c.before), after: plainValue(c.path, c.after), undo: () => undoSettings(c.path) })) });
+  const ws = Object.entries(S.ws.instructions).map(([kind, item]) => ({ label: (PROMPT_JOBS[kind] || kind) + " prompt", before: "",
+    after: item.unset ? (sharedText() ? "Honcho's prompt + shared workspace text" : "Honcho's prompt only") : item.text ? "Honcho's prompt + my text: " + item.text : "Honcho's prompt only",
+    undo: () => { delete S.ws.instructions[kind]; delete S.promptMode[kind]; } }));
+  if (ws.length) groups.push({ file: "Honcho prompts", items: ws });
+  const instr = Object.entries(S.instr).map(([key, item]) => ({ label: item.label, before: item.before, after: item.text, undo: () => delete S.instr[key] }));
+  if (instr.length) groups.push({ file: "Instruction files", items: instr });
+  const honcho = Object.entries(S.hEdits).map(([path, value]) => ({ label: path, before: hValue0(path), after: value, undo: () => delete S.hEdits[path] }));
+  if (honcho.length) groups.push({ file: "Honcho config (used after a Honcho restart)", items: honcho });
+  return groups;
+}
+const FIELD_NAMES = { brief: "brief", effort: "effort", deduction_rounds: "deduction rounds", induction_rounds: "induction rounds", backend: "model", enabled: "dreams",
+  brief_tokens: "tokens for new conclusions", tool_calls: "tool-call cap", notes: "working notes", notes_tokens: "working notes size", budget: "show budget", write_window: "rounds left to write" };
+function fieldName(keys) {
+  if (keys[0] === "rerank") return "rerank " + (keys[1] ? (RERANK_NAMES[keys[1]] || keys[1]).toLowerCase() : "(all)");
+  return FIELD_NAMES[keys[0]] || keys[0];
+}
+function plainPath(path) {
+  const k = path.split(".");
+  if (k[0] === "peers") return "Peer " + k[1] + (k[2] ? ": " + fieldName(k.slice(2)) : "");
+  if (k[0] === "pairs") return "Pair " + k[1].replace("/", " → ") + (k[2] ? ": " + fieldName(k.slice(2)) : "");
+  if (k[0] === "defaults") return "Defaults: " + fieldName(k.slice(1));
+  if (path === "providers.active") return "Dreams: provider";
+  if (k[0] === "providers" && k[1] === "backends") return "Provider " + k[2] + ": " + (k[3] === "models" ? "model list" : k[3] === "model" ? "model" : k[3]);
+  if (path === "scheduler.poll_seconds") return "Scheduler: check every (seconds)";
+  if (path === "scheduler.max_parallel") return "Scheduler: dreams at the same time";
+  if (path === "scheduler.dream_type") return "Scheduler: dream type";
+  if (path === "scheduler.skip") return "Pairs with dreams disabled";
+  if (path === "providers.concurrency") return "Model calls at the same time";
+  if (path === "providers.timeout_seconds") return "Time limit per call (seconds)";
+  if (path === "mode") return "Who starts dreams";
+  return path;
+}
+function plainValue(path, v) {
+  if (path.endsWith(".backend") && typeof v === "string") return shortLabel(v);
+  if (path.endsWith(".models") && Array.isArray(v)) return v.length + " models (" + v.slice(-1)[0] + " last)";
+  return v;
+}
+function changeCount() { return changeList().reduce((n, g) => n + g.items.length, 0); }
+function discardAll() { S.settings = clone(S.settings0); S.hEdits = {}; S.ws.instructions = {}; S.instr = {}; S.editor = null; S.promptMode = {}; S.routeAllStaged = false; note("Changes discarded."); }
+
+// Writes one settings.json change at once (switches), keeping the edits that wait for Review.
+async function writeSettingsNow(mutate, message) {
+  const pending = settingsChanges();
+  const base = clone(S.settings0);
+  mutate(base);
+  try {
+    await api("/api/settings", { settings: base, mtime_ns: S.mtime, apply: true });
+    const fresh = await api("/api/settings");
+    S.settings0 = fresh.settings; S.mtime = fresh.mtime_ns;
+    S.settings = clone(fresh.settings);
+    for (const c of pending) setPath(S.settings, c.path, clone(c.after));
+    mutate(S.settings);
+    S.notice = message ? { text: message } : "";
+  } catch (e) { S.notice = { text: e.message, bad: true }; }
+  render();
+}
+
+// ---------- data ----------
+function indexHoncho(payload) {
+  const index = {};
+  const walk = (fields) => { for (const f of fields || []) { if (f.fields) walk(f.fields); if (f.entries) for (const e of f.entries) walk(e.fields); if (f.path && !f.fields && !f.entries) index[f.path] = f; } };
+  for (const s of payload.sections || []) walk(s.fields);
+  return index;
+}
+function hValue0(path) { const f = S.hIndex[path]; return f ? f.value : undefined; }
+function hValue(path) { return path in S.hEdits ? S.hEdits[path] : hValue0(path); }
+function hDefault(path) { const f = S.hIndex[path]; return f ? f.default : undefined; }
+function hSet(path, value) { if (same(value, hValue0(path))) delete S.hEdits[path]; else S.hEdits[path] = value; }
+function wsEnabled(module) { return S.control && S.control.enabled ? S.control.enabled[module] : undefined; }
+
+async function loadAll() {
+  const tasks = {
+    settings: api("/api/settings"), control: api("/api/control"), honcho: api("/api/honcho-config"), models: api("/api/models"),
+    runtime: api("/api/runtime"), peers: api("/api/peers"), status: api("/api/status"), containers: api("/api/containers"),
+    history: api("/api/history"), instructions: api("/api/instructions"), prompts: api("/api/prompts"), rerankStats: api("/api/rerank/stats"), rerankWarnings: api("/api/rerank/warnings"), runs: api("/api/runs"), cost: api("/api/cost"),
+  };
+  const errors = [];
+  for (const [name, task] of Object.entries(tasks)) {
+    try {
+      const d = await task;
+      if (name === "settings") { S.settings0 = d.settings; S.settings = clone(d.settings); S.mtime = d.mtime_ns; S.settingsError = d.settings ? null : ((d.errors || []).join("; ") || "settings.json cannot be read"); }
+      else if (name === "honcho") { S.honcho = d; S.hIndex = indexHoncho(d); }
+      else if (name === "models") S.catalogue = d;
+      else if (name === "peers") S.peersApi = d;
+      else if (name === "runtime") S.runtime = d.values || {};
+      else S[name] = d;
+    } catch (e) { errors.push(name + ": " + e.message); if (name === "settings") { S.settings0 = null; S.settings = null; S.settingsError = e.message; } }
+  }
+  S.loaded = true;
+  S.hEdits = {}; S.ws.instructions = {}; S.instr = {}; S.editor = null; S.promptMode = {}; S.keptFallback = []; S.routeAllStaged = false;
+  document.getElementById("read-at").textContent = "Read " + when(new Date());
+  if (errors.length) S.notice = { text: errors.join(" · "), bad: true };
+  render();
+}
+async function reloadPart(name, path) { try { S[name] = await api(path); } catch (e) { S.notice = { text: e.message, bad: true }; } }
+
+// ---------- shell ----------
+// The pages that read settings.json. The others (Honcho config, Runs, Cost, Logs) draw from their own data.
+const NEEDS_SETTINGS = new Set(["overview", "models", "peers", "pairs", "rerank", "instructions", "advanced"]);
+function pageBody(id, draw) {
+  if (!S.loaded) return [h("p", { class: "hint" }, "Loading…")];
+  if (!S.settings && NEEDS_SETTINGS.has(id)) return [h("div", { class: "err" }, "This page needs settings.json, which cannot be used: " + (S.settingsError || "unknown") + ". Honcho config, Runs, Cost and Logs still work.")];
+  return draw();
+}
+function render() {
+  document.getElementById("nav").replaceChildren(...PAGES.map(([id, label]) => h("a", { href: "#" + id, class: S.page === id ? "on" : "" }, label)));
+  renderHealth();
+  const page = { overview: pageOverview, models: pageModels, honcho: pageHoncho, peers: pagePeers, pairs: pagePairs, rerank: pageRerank, runs: pageRuns, cost: pageCost, instructions: pageInstructions, logs: pageLogs, advanced: pageAdvanced }[S.page] || pageOverview;
+  let content;
+  try { content = pageBody(S.page, page); }
+  catch (e) { content = [h("div", { class: "err" }, "This page failed to draw: " + e.message)]; console.error(e); }
+  const scroll = window.scrollY;
+  const notice = S.notice ? h("div", { class: S.notice.bad ? "err" : "warn" }, S.notice.text) : null;
+  document.getElementById("main").replaceChildren(...[notice, content].flat(5).filter(Boolean));
+  window.scrollTo(0, scroll);
+  const count = changeCount();
+  const review = document.getElementById("review-btn");
+  review.textContent = "Review (" + count + ")";
+  review.className = count ? "has" : "";
+  document.getElementById("discard-btn").hidden = !count;
+}
+function containerSummary() {
+  const rows = (S.containers && S.containers.containers) || [];
+  const running = rows.filter((r) => r.state === "running").length;
+  return { rows, running, text: rows.length ? (running === rows.length ? "All " + rows.length + " containers running" : running + " of " + rows.length + " containers running") : "Containers unknown" };
+}
+function renderHealth() {
+  const s = containerSummary();
+  const node = document.getElementById("health");
+  node.textContent = "● " + s.text;
+  node.className = s.rows.length && s.running === s.rows.length ? "ok" : "bad";
+}
+
+// ---------- overview: switches act at once ----------
+function jobState(job) {
+  const toml = (path) => { const v = hValue0(path); return v === undefined || v === null ? true : v; };
+  if (job === "dream") {
+    if (toml("dream.enabled") === false) return { on: false, why: "Off in Honcho's config file.", toml: true };
+    if (wsEnabled("dream") === false) return { on: false, why: "Switched off here." };
+    return { on: true, why: S.settings.mode === "scheduler" ? "Only the scheduler starts dreams." : "Honcho starts dreams when a peer is idle." };
+  }
+  if (job === "reasoning") return wsEnabled("reasoning") === false ? { on: false, why: "Switched off here." } : { on: true, why: "Every new message is processed." };
+  if (toml("summary.enabled") === false) return { on: false, why: "Off in Honcho's config file.", toml: true };
+  return wsEnabled("summary") === false ? { on: false, why: "Switched off here." } : { on: true, why: "Sessions are summarised." };
+}
+async function setJob(job, on) {
+  S.busy = true; render();
+  try {
+    await api("/api/workspace", { enabled: { [job]: on }, instructions: {}, apply: true });
+    const tomlPath = job === "dream" ? "dream.enabled" : job === "summary" ? "summary.enabled" : null;
+    let restart = false;
+    if (on && tomlPath && hValue0(tomlPath) === false) {
+      const values = {}; setPath(values, tomlPath, true);
+      await api("/api/honcho-config/write", { values, mtime_ns: S.honcho.mtime_ns });
+      restart = true;
+      await reloadPart("honcho", "/api/honcho-config"); S.hIndex = indexHoncho(S.honcho);
+    }
+    await reloadPart("control", "/api/control");
+    S.notice = { text: (on ? "Enabled. " : "Disabled. ") + (restart ? "It was also off in Honcho's config file; that is changed and takes effect after a Honcho restart (button below)." : "") };
+    S.needRestart = S.needRestart || restart;
+  } catch (e) { S.notice = { text: e.message, bad: true }; }
+  S.busy = false; render();
+}
+function restartButton() {
+  return twoStep("Restart Honcho now", "Click again to restart", async () => {
+    try { await api("/api/honcho-config/apply", {}); S.needRestart = false; note("Restart sent to Honcho's api and deriver. It takes about 30 seconds."); } catch (e) { note(e.message, true); }
+  });
+}
+function pageOverview() {
+  const cards = [["dream", "Dreams", "Reviews existing memory and writes new conclusions. Costs the most."],
+    ["reasoning", "Intake", "Turns every new message into memory (Honcho's deriver)."],
+    ["summary", "Summaries", "Writes short and long summaries of each session."]].map(([job, name, what]) => {
+    const st = jobState(job);
+    return h("div", { class: "job" }, h("div", { class: "name" }, name), h("div", { class: "what" }, what),
+      h("div", { class: "state " + (st.on ? "on" : "off") }, st.on ? "Enabled" : "Disabled"), h("div", { class: "why" }, st.why),
+      h("button", { class: st.on ? "" : "pri", disabled: S.busy, onclick: () => setJob(job, !st.on) }, st.on ? "Disable" : "Enable"));
+  });
+  cards.push(h("div", { class: "job" }, h("div", { class: "name" }, "Questions"), h("div", { class: "what" }, "Answers questions about a peer when an app asks (dialectic)."),
+    h("div", { class: "state on" }, "Enabled"), h("div", { class: "why" }, "Always on. Honcho has no switch for it.")));
+  const mode = S.settings0.mode;
+  const modeCard = (value, title, text) => h("label", { class: "mode" + (mode === value ? " on" : "") },
+    h("div", {}, h("input", { type: "radio", name: "mode", checked: mode === value, onchange: () => writeSettingsNow((s) => { s.mode = value; }, "Dreams are now started by " + title + ".") }), " ", h("b", {}, title)),
+    h("div", { class: "hint" }, text));
+  const workers = (name) => { const v = S.runtime[name]; return v ? Object.values(v)[0] : "unknown"; };
+  const q = S.status && S.status.queue;
+  const last = ((S.status && S.status.policy_log) || []).filter((l) => l.includes(" <- ")).slice(-1)[0];
+  return [
+    h("h1", {}, "Overview"), h("p", { class: "lead" }, "What Honcho is doing now. Buttons and switches act at once."),
+    costCard(),
+    h("p", { class: S.status && S.status.hook && S.status.hook.active ? "ok" : "bad" },
+      S.status && S.status.hook ? S.status.hook.message : "hook status unavailable"),
+    h("div", { class: "box" }, h("h2", {}, "Background work"), h("div", { class: "in" }, h("div", { class: "jobs" }, cards),
+      S.needRestart ? h("div", { class: "warn" }, "Honcho's config file changed. ", restartButton()) : null)),
+    h("div", { class: "box" }, h("h2", {}, "Who starts dreams"), h("div", { class: "in" }, h("div", { class: "modes" },
+      modeCard("stock", "scheduling off (overlays still apply)", "Honcho starts dreams when idle. Per-dream settings and instructions still apply; this scheduler does not discover peers or queue dreams."),
+      modeCard("scheduler", "this scheduler", "This scheduler discovers peers and queues enabled pairs. Manual MCP/SDK dreams also pass the current gate.")))),
+    schedulerBox(),
+    h("div", { class: "box" }, h("h2", {}, "Health"), h("div", { class: "in tw" }, h("table", {}, h("tbody", {},
+      h("tr", {}, h("td", {}, "Containers"), h("td", {}, containerSummary().text)),
+      h("tr", {}, h("td", {}, "Intake workers"), h("td", {}, workers("DERIVER_WORKERS"))),
+      h("tr", {}, h("td", {}, "API workers"), h("td", {}, workers("API_WORKERS"))),
+      h("tr", {}, h("td", {}, "Queue"), h("td", {}, q ? q.pending_work_units + " waiting, " + q.in_progress_work_units + " running" : "unknown")),
+      h("tr", {}, h("td", {}, "Last dream"), h("td", { class: "mono" }, last ? last.slice(0, 19) + "   " + last.slice(20).split(" ")[0] : "none logged")))))),
+  ];
+}
+
+// ---------- models ----------
+function shortLabel(ref) {
+  const [b, ...m] = String(ref || "").split(":");
+  const e = dreamEntries().find((x) => x.backend === b && x.model === m.join(":"));
+  return e ? e.label : (m.join(":") || b);
+}
+function dreamEntries() { return S.catalogue.dream || []; }
+function entryLabel(backend, model) {
+  const e = dreamEntries().find((x) => x.backend === backend && x.model === model);
+  return e ? e.vendor + " · " + e.label : (model || "?") + " (" + backend + ")";
+}
+// One dropdown: vendor groups, model names. Value is "backend:model".
+function dreamModelOptions(firstLabel) {
+  const groups = {};
+  for (const e of dreamEntries()) (groups[e.vendor] = groups[e.vendor] || []).push({ value: e.backend + ":" + e.model, label: e.label });
+  return (firstLabel ? [{ value: "", label: firstLabel }] : []).concat(Object.entries(groups).map(([vendor, items]) => ({ group: vendor, items })));
+}
+function ensureListed(settings, backend, model) {
+  const b = settings.providers.backends[backend];
+  if (b && (b.kind === "cli-codex" || b.kind === "cli-claude") && !Array.isArray(b.models)) return;
+  if (b && Array.isArray(b.models) && model && !b.models.includes(model)) b.models.push(model);
+}
+function activeRef(settings) {
+  const active = settings.providers.active.split(":")[0];
+  const b = settings.providers.backends[active] || {};
+  return active + ":" + (b.model || "");
+}
+function effortFor(backend) {
+  const b = S.settings.providers.backends[backend] || {};
+  if ((b.kind || "").startsWith("cli-")) return { key: "effort", required: true };
+  if (b.kind === "openai-compat") return { key: "thinking_effort", required: false };
+  return null;
+}
+function effortSelect(value, required, onchange, width, blankLabel, noneOk = true) {
+  const options = (required ? [] : [{ value: "", label: blankLabel || "Model default" }]).concat(EFFORTS.filter((e) => noneOk || e !== "none" || value === "none").map(effortOption));
+  return choice(options, value || (required ? "medium" : ""), onchange, { style: "width:" + (width || 150) + "px" });
+}
+// Honcho's own jobs live in config.toml. A routed row (transport openai and extra_body.backend @stage) picks a
+// catalogue model into providers.stages. Route all jobs through the bridge is the one config.toml setup.
+const TASKS = [
+  { label: "Intake", stage: "deriver", what: "turns messages into memory", path: "deriver.model_config" },
+  { label: "Summaries", stage: "summary", what: "session summaries", path: "summary.model_config" },
+].concat(LEVELS.map((l) => ({ label: "Questions · " + l, stage: "dialectic." + l, what: l === "minimal" ? "dialectic, each level on its own" : "", path: "dialectic.levels." + l + ".model_config" })));
+TASKS.push(
+  { label: "Dream deduction", stage: "dream.deduction", path: "dream.deduction_model_config" },
+  { label: "Dream induction", stage: "dream.induction", path: "dream.induction_model_config" },
+  { label: "Peer card refresh", stage: "peer_card", what: "uses deduction transport; provider can differ through hook", path: "dream.deduction_model_config" }
+);
+function jobOptions() {
+  return dreamModelOptions().map((g) => ({ group: g.group, items: g.items.map((i) => ({ value: "bridge:" + i.value, label: i.label })) }));
+}
+function stageHot(path, stage) {
+  const params = hValue0(path + ".overrides.provider_params") || {};
+  const alias = (params.extra_body || {}).backend;
+  return hValue0(path + ".transport") === "openai" && (alias === "@" + stage || stage === "peer_card" && alias === "@dream.deduction");
+}
+function stageRefOf(entry) {
+  if (!entry) return "";
+  if (typeof entry === "object") return entry.model || "";
+  return String(entry);
+}
+function readJob(path, stage) {
+  const ref = stageRefOf(S.settings.providers.stages && S.settings.providers.stages[stage]);
+  if (ref && (stageHot(path, stage) || Object.keys(S.hEdits).some((key) => key.startsWith(path + ".")))) return "bridge:" + ref;
+  const pp = hValue(path + ".overrides.provider_params");
+  const alias = pp && pp.extra_body && pp.extra_body.backend;
+  if (alias && !String(alias).startsWith("@")) return "bridge:" + alias;
+  return "";
+}
+function stageEffort(stage) {
+  const entry = (S.settings.providers.stages || {})[stage];
+  return entry && typeof entry === "object" ? (entry.effort || "") : "";
+}
+function writeStageEffort(stage, effort) {
+  const stages = S.settings.providers.stages = S.settings.providers.stages || {};
+  const own = stages[stage];
+  const ref = stageRefOf(own || (stage === "peer_card" ? stages["dream.deduction"] : ""));
+  if (!ref) return;
+  if (!own && !effort) return;
+  if (effort) stages[stage] = { model: ref, effort: effort };
+  else stages[stage] = ref;
+}
+const DREAM_STAGES = ["dream.deduction", "dream.induction", "peer_card"];
+// With the hook installed a dream takes its effort from settings.json (Peers, Defaults row); set nowhere, config.toml's value stays.
+function perDreamEffort(task) {
+  if (!DREAM_STAGES.includes(task.stage) || !(S.status && S.status.hook && S.status.hook.active)) return null;
+  return h("span", { class: "hint", title: "The hook sets the effort of a dream from Peers or Defaults; set nowhere, config.toml's value is used." },
+    "per dream: Peers → Defaults (" + (S.settings.defaults.effort || "model default") + ")");
+}
+function writeJob(path, value, stage) {
+  if (!value || !value.startsWith("bridge:")) return;
+  const ref = value.slice(7);
+  const [b, ...m] = ref.split(":");
+  const stages = S.settings.providers.stages = S.settings.providers.stages || {};
+  const own = stages[stage];
+  if (own && typeof own === "object" && own.effort) stages[stage] = { model: ref, effort: own.effort };
+  else stages[stage] = ref;
+  ensureListed(S.settings, b, m.join(":"));
+}
+// Fields Honcho's FallbackModelSettings keeps. Only values that are set are copied. structured_output_mode is
+// dropped unless the fallback transport is openai: Honcho refuses to start otherwise.
+const FALLBACK_KEYS = ["model", "transport", "thinking_effort", "thinking_budget_tokens", "max_output_tokens", "structured_output_mode"];
+const OVERRIDE_KEYS = ["base_url", "api_key_env", "provider_params"];
+function jobBlocks() {
+  const seen = new Set();
+  const blocks = [];
+  for (const task of TASKS) {
+    if (task.stage === "peer_card" || seen.has(task.path)) continue;
+    seen.add(task.path);
+    blocks.push(task);
+  }
+  return blocks;
+}
+function valueSet(value) {
+  if (value == null || value === "") return false;
+  if (typeof value === "object" && !Array.isArray(value) && !Object.keys(value).length) return false;
+  return true;
+}
+function overridesOf(path) {
+  const overrides = {};
+  if (valueSet(hValue(path + ".base_url"))) overrides.base_url = hValue(path + ".base_url");
+  if (valueSet(hValue(path + ".api_key_env"))) overrides.api_key_env = hValue(path + ".api_key_env");
+  if (valueSet(hValue(path + ".provider_params"))) overrides.provider_params = clone(hValue(path + ".provider_params"));
+  return Object.keys(overrides).length ? overrides : null;
+}
+function primarySnapshot(path) {
+  const out = {};
+  for (const key of FALLBACK_KEYS) if (valueSet(hValue(path + "." + key))) out[key] = hValue(path + "." + key);
+  const overrides = overridesOf(path + ".overrides");
+  if (overrides) out.overrides = overrides;
+  if (out.structured_output_mode != null && out.transport !== "openai") delete out.structured_output_mode;
+  return out;
+}
+function readFallback(path) {
+  const whole = hValue(path + ".fallback");
+  if (whole === null) return null;
+  if (whole && typeof whole === "object" && (whole.model || whole.transport || whole.overrides || whole.thinking_effort)) return whole;
+  const out = {};
+  for (const key of FALLBACK_KEYS) if (valueSet(hValue(path + ".fallback." + key))) out[key] = hValue(path + ".fallback." + key);
+  const overrides = overridesOf(path + ".fallback.overrides");
+  if (overrides) out.overrides = overrides;
+  return Object.keys(out).length ? out : null;
+}
+function routeSource() {
+  for (const task of jobBlocks()) {
+    if (!stageHot(task.path, task.stage)) continue;
+    const base = hValue(task.path + ".overrides.base_url");
+    if (base) return { base, key: hValue(task.path + ".overrides.api_key_env") };
+  }
+  return { base: "http://bridge:8793/v1", key: "BRIDGE_TOKEN" };
+}
+function stageRefFor(model, transport, baseUrl) {
+  const entries = ((S.catalogue && S.catalogue.dream) || []).filter((e) => e && e.model === model);
+  const active = S.settings.providers.active;
+  if (!entries.length) return active;
+  const kinds = { anthropic: "anthropic-api", openai: "openai-compat", gemini: "gemini" };
+  const want = kinds[transport];
+  const backends = S.settings.providers.backends || {};
+  let matched = want ? entries.filter((e) => (backends[e.backend] || {}).kind === want) : entries;
+  // Several backends serve the same model id (a proxy and the provider): the job's own base_url host decides.
+  const host = (url) => { try { return new URL(url).host; } catch (e) { return ""; } };
+  if (matched.length > 1 && baseUrl) {
+    const same = matched.filter((e) => host((backends[e.backend] || {}).base_url) === host(baseUrl));
+    if (same.length) matched = same;
+  }
+  const pick = matched.length === 1 ? matched[0] : (entries.length === 1 ? entries[0] : null);
+  return pick ? pick.backend + ":" + pick.model : active;
+}
+function effectivelyRouted(path, stage) {
+  const params = hValue(path + ".overrides.provider_params") || {};
+  const alias = (params.extra_body || {}).backend;
+  return hValue(path + ".transport") === "openai" && hValue(path + ".model") === "stage-route" && alias === "@" + stage;
+}
+function routePrimary(task, route) {
+  const path = task.path;
+  const pp = clone(hValue(path + ".overrides.provider_params") || {});
+  pp.extra_body = Object.assign({}, pp.extra_body || {}, { backend: "@" + task.stage });
+  // An old effort here would reach the bridge as the request's effort and beat the per-job pick; the fallback keeps it.
+  const old = pp.extra_body.output_config;
+  if (old && old.effort) {
+    delete old.effort;
+    if (!Object.keys(old).length) delete pp.extra_body.output_config;
+  }
+  hSet(path + ".transport", "openai");
+  hSet(path + ".model", "stage-route");
+  hSet(path + ".overrides.base_url", route.base);
+  hSet(path + ".overrides.api_key_env", route.key);
+  hSet(path + ".overrides.provider_params", pp);
+  hSet(path + ".thinking_effort", null);
+  if (task.stage === "dream.deduction" || task.stage === "dream.induction") hSet(path + ".structured_output_mode", "json_object");
+}
+function fileHasFallback(path) {
+  const whole = hValue0(path + ".fallback");
+  if (whole && typeof whole === "object") return true;
+  if (FALLBACK_KEYS.some((key) => valueSet(hValue0(path + ".fallback." + key)))) return true;
+  const prefix = path + ".fallback.overrides";
+  return valueSet(hValue0(prefix + ".base_url")) || valueSet(hValue0(prefix + ".api_key_env")) || valueSet(hValue0(prefix + ".provider_params"));
+}
+// Undo is server-side: the Write that carries these edits first copies config.toml to config.toml.before-route-all,
+// and the two undo buttons put that copy back (the job tables only, or the whole file).
+function routeAll() {
+  const route = routeSource();
+  const kept = [];
+  for (const task of jobBlocks()) {
+    if (stageHot(task.path, task.stage) || effectivelyRouted(task.path, task.stage)) {
+      // An effort left on a routed primary reaches the bridge as the request's effort and beats the per-job pick.
+      const path = task.path;
+      if (valueSet(hValue(path + ".thinking_effort"))) hSet(path + ".thinking_effort", null);
+      const pp = hValue(path + ".overrides.provider_params");
+      const old = pp && pp.extra_body && pp.extra_body.output_config;
+      if (old && old.effort) {
+        const next = clone(pp);
+        delete next.extra_body.output_config.effort;
+        if (!Object.keys(next.extra_body.output_config).length) delete next.extra_body.output_config;
+        hSet(path + ".overrides.provider_params", next);
+      }
+      continue;
+    }
+    const snap = primarySnapshot(task.path);
+    if (Object.keys(snap).length && !(snap.model && snap.transport)) continue;
+    // A fallback the file already has is the user's own: the primary is routed, the fallback is left as it is.
+    if (fileHasFallback(task.path)) kept.push(task.label);
+    else if (snap.model && snap.transport) hSet(task.path + ".fallback", snap);
+    routePrimary(task, route);
+    const stages = S.settings.providers.stages = S.settings.providers.stages || {};
+    if (!stages[task.stage]) {
+      // The job keeps its effort too: Route all takes it off the routed primary, so it moves into the stage.
+      const ref = stageRefFor(snap.model, snap.transport, snap.overrides && snap.overrides.base_url);
+      const effort = fallbackEffort(snap);
+      stages[task.stage] = effort ? { model: ref, effort } : ref;
+    }
+    // The job already calls that provider, so its key is in Honcho's .env: a switched-off backend it now goes through is switched on.
+    const ref = stages[task.stage];
+    const name = String((ref && ref.model) || ref || "").split(":")[0];
+    const backend = (S.settings.providers.backends || {})[name];
+    if (backend && backend.enabled === false) backend.enabled = true;
+  }
+  // The peer card shares dream deduction's block; the hook stamps @peer_card only when its stage entry exists.
+  const stages = S.settings.providers.stages || {};
+  if (!stages.peer_card && stages["dream.deduction"]) stages.peer_card = clone(stages["dream.deduction"]);
+  S.keptFallback = kept;
+  S.routeAllStaged = true;
+}
+async function undoRouting(scope) {
+  try {
+    await api("/api/honcho-config/undo-routing", { scope, mtime_ns: S.honcho.mtime_ns });
+    await reloadPart("honcho", "/api/honcho-config"); S.hIndex = indexHoncho(S.honcho);
+    S.needRestart = true;
+    note(scope === "file" ? "config.toml is back as it was before routing. A Honcho restart is needed." : "The job tables are back as they were before routing. A Honcho restart is needed.");
+  } catch (e) { note(e.message, true); }
+  render();
+}
+function routingBox() {
+  const copyAt = S.honcho && S.honcho.before_route_all_at;
+  // Route all also writes providers.stages, so it needs a readable settings.json.
+  const route = S.settings
+    ? h("button", { onclick: () => { routeAll(); render(); } }, "Route all jobs through the bridge")
+    : h("button", { disabled: true, title: "settings.json cannot be used" }, "Route all jobs through the bridge");
+  const undo = copyAt
+    ? [twoStep("Undo routing (jobs only)", "Click again to undo", () => undoRouting("jobs")),
+       twoStep("Restore config.toml from before routing", "Click again to restore", () => undoRouting("file"))]
+    : [h("button", { disabled: true }, "Undo routing (jobs only)"), h("button", { disabled: true }, "Restore config.toml from before routing")];
+  return h("div", { class: "box" }, h("h2", {}, "Bridge routing"), h("div", { class: "in" },
+    h("p", { class: "hint" }, "One config.toml write for every job that is not already routed. Review, then Write. A Honcho restart is needed: Honcho reads config.toml only at start."),
+    h("div", { class: "row" }, route, ...undo),
+    h("p", { class: "hint" }, copyAt
+      ? "Undo routing puts back only the job tables from the copy of " + when(copyAt) + "; Restore also undoes every other config.toml change made since then."
+      : "No copy from before routing: both undo choices read the copy Write takes when it carries Route all's edits."),
+    S.keptFallback && S.keptFallback.length ? h("p", { class: "hint" }, "Kept your own fallback: " + S.keptFallback.join(", ")) : null));
+}
+// A provider change drops structured_output_mode (Honcho refuses it on any transport but openai) and the old
+// provider's overrides (base_url, api_key_env, provider_params) from that fallback.
+function writeFallbackModel(task, value) {
+  const colon = String(value || "").indexOf(":");
+  if (colon <= 0) return;
+  const path = task.path + ".fallback";
+  const transport = value.slice(0, colon), model = value.slice(colon + 1);
+  const staged = S.hEdits[path];
+  if (staged && typeof staged === "object") {
+    if (staged.transport !== transport) { delete staged.structured_output_mode; delete staged.overrides; }
+    staged.model = model;
+    staged.transport = transport;
+    return;
+  }
+  if (hValue(path + ".transport") !== transport) {
+    if (valueSet(hValue(path + ".structured_output_mode"))) hSet(path + ".structured_output_mode", null);
+    const held = OVERRIDE_KEYS.filter((key) => valueSet(hValue(path + ".overrides." + key)));
+    for (const key of held) hSet(path + ".overrides." + key, null);
+    if (held.length) hSet(path + ".overrides", null);
+  }
+  hSet(path + ".model", model);
+  hSet(path + ".transport", transport);
+}
+// A fallback's effort is thinking_effort, or the provider's own field when config.toml set it there
+// (extra_body.output_config.effort, as Anthropic jobs often do); the control shows and edits whichever is set.
+const outputEffort = (fb) => ((((fb.overrides || {}).provider_params || {}).extra_body || {}).output_config || {}).effort;
+function fallbackEffort(fb) { return fb.thinking_effort || outputEffort(fb) || ""; }
+function withOutputEffort(params, effort) {
+  const next = clone(params);
+  if (effort) next.extra_body.output_config.effort = effort;
+  else delete next.extra_body.output_config.effort;
+  return next;
+}
+function writeFallbackEffort(task, effort) {
+  // A fallback staged whole by Route all is one edit: change it there, so the control and the write agree.
+  const staged = S.hEdits[task.path + ".fallback"];
+  if (staged && typeof staged === "object") {
+    if (!staged.thinking_effort && outputEffort(staged)) staged.overrides.provider_params = withOutputEffort(staged.overrides.provider_params, effort);
+    else if (effort) staged.thinking_effort = effort;
+    else delete staged.thinking_effort;
+    return;
+  }
+  const fb = readFallback(task.path) || {};
+  if (!fb.thinking_effort && outputEffort(fb)) hSet(task.path + ".fallback.overrides.provider_params", withOutputEffort(fb.overrides.provider_params, effort));
+  else hSet(task.path + ".fallback.thinking_effort", effort || null);
+}
+function fallbackWords(task) {
+  if (!stageHot(task.path, task.stage) && !effectivelyRouted(task.path, task.stage)) return "Not routed: Honcho calls this model itself (Honcho native)";
+  const fb = readFallback(task.path);
+  if (!fb || !fb.model || !fb.transport) return "No fallback: if the bridge is down this job fails";
+  const items = (((S.catalogue && S.catalogue.tasks) || {})[fb.transport]) || [];
+  const found = items.find((item) => item && item.model === fb.model);
+  const name = found && found.label ? found.label : fb.model;
+  const effort = fallbackEffort(fb) ? ", effort " + fallbackEffort(fb) : "";
+  return "Bridge down → " + task.label + " uses " + name + " (Honcho native)" + effort;
+}
+function pairSelects(groups, current, onPick, widths) {
+  const holder = h("span", { style: "display:inline-flex;gap:6px;flex-wrap:wrap" });
+  let group = (groups.find((g) => g.items.some((i) => i.value === current)) || {}).group;
+  const draw = () => {
+    const g = groups.find((x) => x.group === group);
+    const items = g ? g.items : [];
+    const provider = choice((group ? [] : [{ value: "", label: "Choose…" }]).concat(groups.map((x) => ({ value: x.group, label: x.group }))), group || "", (v) => { group = v; draw(); }, { style: "width:" + (widths ? widths[0] : 170) + "px" });
+    const shown = items.some((i) => i.value === current) ? current : "";
+    const model = choice((shown ? [] : [{ value: "", label: group ? "Choose a model" : (current ? current.split(":").pop() + " (current)" : "—") }]).concat(items), shown, (v) => { if (v) onPick(v); }, { style: "width:" + (widths ? widths[1] : 230) + "px" });
+    holder.replaceChildren(provider, model);
+  };
+  draw();
+  return holder;
+}
+function pageModels() {
+  const prov = S.settings.providers;
+  const active = prov.active.split(":")[0];
+  const backend = prov.backends[active] || {};
+  const eff = effortFor(active);
+  const dreamRow = h("tr", {},
+    h("td", {}, h("b", {}, "Dreams fallback"), h("div", { class: "hint" }, "used when no stage provider is configured")),
+    h("td", {}, pairSelects(dreamModelOptions(), activeRef(S.settings), (v) => {
+      const [b, ...m] = v.split(":"); const model = m.join(":");
+      prov.active = b; prov.backends[b].model = model; ensureListed(S.settings, b, model);
+      if (prov.backends[b].enabled === false) prov.backends[b].enabled = true;
+      render();
+    })),
+    h("td", {}, eff ? effortSelect(backend[eff.key], eff.required, (v) => { if (v) backend[eff.key] = v; else delete backend[eff.key]; render(); }) : h("span", { class: "hint" }, "set by the model")));
+  const options = jobOptions();
+  const rows = TASKS.map((task) => {
+    const routed = stageHot(task.path, task.stage);
+    const missing = !hValue(task.path + ".model") || !hValue(task.path + ".transport");
+    const changed = Object.keys(S.hEdits).some((k) => k.startsWith(task.path + "."));
+    const sel = routed
+      ? pairSelects(options, readJob(task.path, task.stage), (v) => { writeJob(task.path, v, task.stage); render(); })
+      : h("span", { class: "hint" }, "not routed — use Route all jobs through the bridge");
+    if (routed && changed) sel.querySelectorAll("select").forEach((s) => s.classList.add("changed"));
+    const effort = perDreamEffort(task) || (routed ? effortSelect(stageEffort(task.stage), false, (v) => { writeStageEffort(task.stage, v); render(); }, 150, "provider default") : null);
+    return h("tr", {}, h("td", {}, h("b", {}, task.label), h("div", { class: "hint" }, routed ? "hot provider routing" : "needs restart (one-time alias setup)"), task.what ? h("div", { class: "hint" }, task.what) : null),
+      h("td", {}, sel, missing ? h("div", { class: "bad hint" }, "Not set: Honcho would use its own default") : null),
+      h("td", {}, effort));
+  });
+  return [
+    h("h1", {}, "Models"), h("p", { class: "lead" }, "Which model does each job. Stage providers marked hot apply after Write. A job that is not routed has no picker until Route all jobs through the bridge on Honcho config, which needs one config.toml write and a restart. A model or per-job effort after that is settings.json only."),
+    h("p", { class: "hint" }, "CLI: no token cap, no sampling, no prompt caching. max_tokens is a best-effort instruction; tool-free intake, summaries and final synthesis are supported after deploying this bridge."),
+    h("p", { class: "hint" }, schemaLine()),
+    S.honcho && S.honcho.version_warning ? h("p", { class: "bad" }, S.honcho.version_warning) : null,
+    h("div", { class: "box" }, h("div", { class: "in tw" }, h("table", {},
+      h("thead", {}, h("tr", {}, h("th", {}, "Job"), h("th", {}, "Model"), h("th", {}, "Effort"))), h("tbody", {}, dreamRow, rows)))),
+    addModelBox(),
+  ];
+}
+// Honcho config.toml fields edited on this page by name. They take effect after a Honcho restart. The rerank and HNSW settings are not in config.toml.
+const HONCHO_SEARCH = [["summary.output_headroom", "Summary output headroom"]];
+function pageHoncho() {
+  const knob = (path, label, list) => {
+    const value = hValue(path), def = hDefault(path);
+    return h("label", {}, label, numberChoice(list, value, (def == null ? UNSET_MEANS[path] || "—" : def) + " · Honcho default", (v) => { hSet(path, v); render(); }, 150));
+  };
+  const limitKnob = (path, label, list) => {
+    const value = hValue(path), def = hDefault(path);
+    const stock = (def == null ? "—" : String(def)) + " · Honcho default";
+    if (typeof list[0] === "number") return knob(path, label, list);
+    const pick = choice([{ value: "", label: stock }].concat(list.map((v) => ({ value: String(v), label: String(v) }))), value == null ? "" : value,
+      (v) => { hSet(path, v === "" ? null : v === "true" ? true : v === "false" ? false : v); render(); }, { style: "width:150px" });
+    return h("label", {}, label, pick);
+  };
+  const groups = Object.entries((S.catalogue && S.catalogue.tasks) || {}).map(([transport, items]) => ({
+    group: transport,
+    items: (items || []).filter((item) => item && item.model).map((item) => ({ value: transport + ":" + item.model, label: item.label || item.model })),
+  })).filter((group) => group.items.length);
+  const rows = jobBlocks().map((task) => {
+    const fb = readFallback(task.path) || {};
+    const current = fb.model && fb.transport ? fb.transport + ":" + fb.model : "";
+    // A model config.toml reaches through its own base_url (a proxy, another provider's API) is not in the catalogue:
+    // it gets a provider entry named after that host, so a Gemini model behind a proxy is not listed as "openai".
+    let choices = groups;
+    if (current && !groups.some((g) => g.items.some((i) => i.value === current))) {
+      let host = "";
+      try { host = fb.overrides && fb.overrides.base_url ? new URL(fb.overrides.base_url).hostname : ""; } catch (e) { host = ""; }
+      choices = groups.concat([{ group: host || fb.transport, items: [{ value: current, label: fb.model }] }]);
+    }
+    const changed = Object.keys(S.hEdits).some((key) => key === task.path + ".fallback" || key.startsWith(task.path + ".fallback."));
+    const model = pairSelects(choices, current, (value) => { writeFallbackModel(task, value); render(); });
+    if (changed) model.querySelectorAll("select").forEach((select) => select.classList.add("changed"));
+    const share = task.stage === "dream.deduction" ? h("div", { class: "hint" }, "Peer card refresh shares this fallback.") : null;
+    return h("tr", {},
+      h("td", {}, h("b", {}, task.label), share),
+      h("td", {}, model),
+      // Honcho's own thinking_effort takes none on the openai transport only: the anthropic transport drops it and gemini has no such level.
+      h("td", {}, current ? effortSelect(fallbackEffort(fb), false, (value) => { writeFallbackEffort(task, value); render(); }, 150, null, fb.transport === "openai") : h("span", { class: "hint" }, "—")),
+      h("td", {}, fallbackWords(task)));
+  });
+  const hasConfig = Object.keys(S.hEdits).length > 0;
+  return [
+    h("h1", {}, "Honcho config"),
+    h("p", { class: "lead" }, "config.toml. Changes wait for Review. A Honcho restart is needed: Honcho reads config.toml only at start."),
+    routingBox(),
+    h("div", { class: "box" }, h("h2", {}, "Fallback if the bridge is down"), h("div", { class: "in tw" }, h("table", {},
+      h("thead", {}, h("tr", {}, h("th", {}, "Job"), h("th", {}, "Honcho native model"), h("th", {}, "Effort"), h("th", {}, "If the bridge is down"))),
+      h("tbody", {}, rows)))),
+    h("div", { class: "box" }, h("h2", {}, "Dreams (Honcho, all peers)"), h("div", { class: "in" },
+      h("p", { class: "hint" }, "Honcho's own values, used by every dream. The limits are only the fallback: a value set on Peers → ⋯ (or its Defaults row) wins for that dream. Changes wait for Review and need a Honcho restart."),
+      h("div", { class: "row" },
+        knob("dream.idle_timeout_minutes", "Idle minutes before a dream", [10, 30, 60, 120]),
+        knob("dream.min_hours_between_dreams", "Hours between dreams", [1, 2, 4, 8, 12, 24])),
+      h("div", { class: "row" }, LIMITS.map(([, label, path, list]) => limitKnob(path, label, list))))),
+    h("div", { class: "box" }, h("h2", {}, "Honcho summary setting (config.toml)"), h("div", { class: "in" },
+      h("p", { class: "hint" }, "The summary output headroom multiplies only the output cap sent to the summary model. It needs a Honcho restart (Restart Honcho below). It is the one patch the component design keeps in Honcho itself."),
+      h("div", { class: "row" }, HONCHO_SEARCH.map(([p, label]) => honchoLabel(p, label))))),
+    h("div", { class: "box" }, h("h2", {}, "Restart Honcho"), h("div", { class: "in" },
+      h("p", { class: "hint" }, "A restart re-reads config.toml; a changed .env needs recreate. Initial stage alias setup, Honcho native providers, embedding and dream limits need restart. Once an alias is configured, providers.stages changes are hot."),
+      hasConfig ? h("div", { class: "warn" }, "Write your changes first (Review at the top), then restart.") : restartButton())),
+  ];
+}
+function addModelBox() {
+  const backends = Object.keys(S.settings.providers.backends);
+  const form = { vendor: vendorsOf()[0] || "", label: "", backend: backends[0] || "", model: "" };
+  const input = (k, ph, w) => h("input", { type: "text", placeholder: ph, style: "width:" + w + "px", oninput: (e) => { form[k] = e.target.value; } });
+  return h("div", { class: "box" }, h("h2", {}, "Add a model to the list"), h("div", { class: "in" },
+    h("p", { class: "hint" }, "Saved in models.json beside settings.json (you can also edit that file). Reached through: the connection that serves it (for OpenRouter models use openrouter, model id like nvidia/nemotron-…)."),
+    h("div", { class: "row" },
+      h("label", {}, "Provider", input("vendor", "e.g. NVIDIA", 140)),
+      h("label", {}, "Name shown", input("label", "e.g. Nemotron Nano", 180)),
+      h("label", {}, "Reached through", choice(backends.map((b) => ({ value: b, label: b })), form.backend, (v) => { form.backend = v; })),
+      h("label", {}, "Model id", input("model", "exact id", 220)),
+      h("button", { class: "pri", onclick: async () => {
+        try { await api("/api/models/add", form); S.catalogue = await api("/api/models"); note("Added " + form.label + "."); } catch (e) { note(e.message, true); }
+      } }, "Add"))));
+}
+function twoStep(label, confirmLabel, action) {
+  const button = h("button", { onclick: () => {
+    if (button.dataset.armed) { button.disabled = true; action(); return; }
+    button.dataset.armed = "1"; button.textContent = confirmLabel; button.className = "has";
+    setTimeout(() => { if (button.isConnected && !button.disabled) { delete button.dataset.armed; button.textContent = label; button.className = ""; } }, 4000);
+  } }, label);
+  return button;
+}
+
+// ---------- peers and pairs ----------
+const MAIN_FIELDS = ["brief", "effort", "deduction_rounds", "induction_rounds", "backend"];
+// Per-dream limits: settings.json field, label, Honcho [dream] key, choices.
+const LIMITS = [
+  ["brief_tokens", "Tokens for new conclusions", "dream.brief_max_new_conclusion_tokens", [2000, 5000, 8000, 20000, 50000, 100000]],
+  ["tool_calls", "Tool-call cap per dream", "dream.max_tool_iterations", [10, 15, 20, 25, 30, 40, 50]],
+  ["notes", "Working notes", "dream.notes_mode", ["off", "shadow", "on"]],
+  ["notes_tokens", "Working notes size (tokens)", "dream.notes_max_tokens", [1000, 2000, 3000, 5000, 8000]],
+  ["budget", "Show the remaining budget", "dream.budget_enabled", [true, false]],
+  ["write_window", "Rounds left to write at the end", "dream.write_window_iterations", [1, 2, 3, 4, 5, 8]],
+];
+const LIMIT_FIELDS = LIMITS.map((l) => l[0]);
+// Where a value comes from: field -> {value, src}. Chain: pair, observer peer, defaults, then Honcho's config.
+function inheritedFor(kind, key) {
+  const out = {};
+  const put = (block, src) => { for (const [f, v] of Object.entries(block || {})) if (v != null && f !== "enabled" && !(f in out)) out[f] = { value: v, src }; };
+  if (kind === "pairs") put(S.settings.peers[key.split("/")[0]], "peer");
+  if (kind !== "defaults") put(S.settings.defaults, "default");
+  for (const [f, , path] of LIMITS) if (!(f in out)) { const v = hValue(path); out[f] = { value: v == null ? (hDefault(path) == null ? UNSET_MEANS[path] : hDefault(path)) : v, src: "Honcho" }; }
+  return out;
+}
+function rowBlock(kind, key) { return kind === "defaults" ? S.settings.defaults : S.settings[kind][key]; }
+function savedBlock(kind, key) { return (kind === "defaults" ? S.settings0.defaults : (S.settings0[kind] || {})[key]) || {}; }
+function changedField(kind, key, f) { return !same((rowBlock(kind, key) || {})[f], savedBlock(kind, key)[f]); }
+// Honcho leaves some limits unset on purpose: unset write window means 15% of the rounds.
+const UNSET_MEANS = { "dream.write_window_iterations": "15% of rounds" };
+function tagOf(i) { return i ? (i.value == null ? "—" : String(i.value)) + " · " + i.src : "—"; }
+// An effort set nowhere is the model's own default.
+const unsetLabel = (f) => (f === "effort" ? "Model default" : "—");
+function markChanged(node, on) { if (on) node.classList.add("changed"); return node; }
+function cells(kind, key, onSet) {
+  const block = rowBlock(kind, key) || {};
+  const isDefaults = kind === "defaults";
+  const inh = isDefaults ? {} : inheritedFor(kind, key);
+  const tag = (f) => (isDefaults || !inh[f] ? unsetLabel(f) : tagOf(inh[f]));
+  const ch = (f, node) => markChanged(node, changedField(kind, key, f));
+  return [
+    h("td", {}, ch("brief", numberChoice(BRIEFS, block.brief, tag("brief"), (v) => onSet("brief", v), 88))),
+    h("td", {}, ch("effort", choice([{ value: "", label: tag("effort") }].concat(EFFORTS.map(effortOption)), block.effort || "", (v) => onSet("effort", v || null), { style: "width:150px" }))),
+    h("td", {}, ch("deduction_rounds", numberChoice(ROUNDS, block.deduction_rounds, tag("deduction_rounds"), (v) => onSet("deduction_rounds", v), 84))),
+    h("td", {}, ch("induction_rounds", numberChoice(ROUNDS, block.induction_rounds, tag("induction_rounds"), (v) => onSet("induction_rounds", v), 84))),
+    h("td", {}, modelButton(kind, key, onSet)),
+    h("td", {}, extraButton(kind, key)),
+  ];
+}
+// The model cell is a button; the picker asks for the provider, then that provider's models.
+function dreamModelDisplay(kind, key) {
+  const settings = S.settings;
+  const peers = settings.peers || {}, pairs = settings.pairs || {};
+  const chain = [];
+  if (kind === "pairs") {
+    const [observer, observed] = key.split("/");
+    chain.push([pairs[key], key], [peers[observer], observer], [peers[observed], observed]);
+  } else if (kind === "peers") chain.push([peers[key], key]);
+  chain.push([settings.defaults, "default"]);
+  const labelFor = (ref) => shortLabel(ref.includes(":") ? ref : ref + ":" + ((settings.providers.backends[ref] || {}).model || ""));
+  for (const [block, source] of chain) {
+    if (block && block.backend) return { label: labelFor(block.backend) + " · " + source, title: "Dream model override from " + source + ": " + block.backend + ". Overrides the Models page's dream stages." };
+  }
+  const stages = settings.providers.stages || {};
+  const names = ["dream.deduction", "dream.induction", "peer_card"];
+  const stageModel = (entry) => !entry ? "" : (typeof entry === "object" ? (entry.model || "") : String(entry));
+  if (names.some((name) => stages[name])) {
+    const models = names.map((name) => labelFor(stageModel(stages[name]) || activeRef(settings)));
+    return { label: new Set(models).size === 1 ? models[0] + " · stages" : "Per-stage models", title: names.map((name, i) => name + ": " + models[i]).join("\n") };
+  }
+  return { label: labelFor(activeRef(settings)) + " · fallback", title: "No dream override or stage models configured; using the Dreams fallback." };
+}
+function modelButton(kind, key, onSet) {
+  const block = rowBlock(kind, key) || {};
+  const own = block.backend;
+  const display = dreamModelDisplay(kind, key);
+  const button = h("button", { class: own ? "pick" : "pick inherit", title: display.title + "\nClick to choose an override.", onclick: () => openModelPicker(own, kind === "defaults" ? "Use stage models / fallback" : "Inherit", (ref) => onSet("backend", ref)) }, display.label);
+  return markChanged(button, changedField(kind, key, "backend"));
+}
+function vendorsOf() { return [...new Set(dreamEntries().map((e) => e.vendor))]; }
+function openModelPicker(current, inheritLabel, onPick) {
+  const cur = dreamEntries().find((e) => current && (e.backend + ":" + e.model === current || (e.backend === current && e.model === (S.settings.providers.backends[current] || {}).model)));
+  let vendor = cur ? cur.vendor : vendorsOf()[0];
+  let ref = cur ? cur.backend + ":" + cur.model : "";
+  const draw = () => {
+    const models = dreamEntries().filter((e) => e.vendor === vendor).map((e) => ({ value: e.backend + ":" + e.model, label: e.label }));
+    if (!models.some((m) => m.value === ref)) ref = models.length ? models[0].value : "";
+    openModal([h("h2", {}, "Choose the model"),
+      h("div", { class: "row", style: "margin-bottom:12px" },
+        h("label", {}, "Provider", choice(vendorsOf().map((v) => ({ value: v, label: v })), vendor, (v) => { vendor = v; ref = ""; draw(); }, { style: "width:220px" })),
+        h("label", {}, "Model", choice(models, ref, (v) => { ref = v; }, { style: "width:260px" }))),
+      h("div", { class: "row" },
+        h("button", { class: "pri", onclick: () => { closeModal(); onPick(ref); render(); } }, "Use this model"),
+        h("button", { onclick: () => { closeModal(); onPick(null); render(); } }, inheritLabel)),
+      h("p", { class: "hint" }, "Waits for Review. The list is models.json beside settings.json; add a model on the Models page or edit the file.")]);
+  };
+  draw();
+}
+function extraButton(kind, key) {
+  const block = rowBlock(kind, key) || {};
+  const set = LIMIT_FIELDS.filter((f) => block[f] != null).length;
+  const changed = LIMIT_FIELDS.some((f) => changedField(kind, key, f));
+  return markChanged(h("button", { class: set ? "has" : "", title: "Dream limits for this row", onclick: () => openExtra(kind, key) }, set ? "⋯ " + set : "⋯"), changed);
+}
+function openExtra(kind, key) {
+  const block = rowBlock(kind, key);
+  const inh = inheritedFor(kind, key);
+  const title = kind === "defaults" ? "Dream limits for every peer" : kind === "peers" ? "Dream limits for " + key : "Dream limits for " + key.replace("/", " → ");
+  const set = (f, v) => { if (v == null || v === "") delete block[f]; else block[f] = v; render(); openExtra(kind, key); };
+  const rows = LIMITS.map(([f, label, , list]) => {
+    const inheritLabel = "Inherit: " + tagOf(inh[f]);
+    let control;
+    if (typeof list[0] === "number") control = numberChoice(list, block[f], inheritLabel, (v) => set(f, v), 210);
+    else control = choice([{ value: "", label: inheritLabel }].concat(list.map((v) => ({ value: String(v), label: String(v) }))), block[f] == null ? "" : String(block[f]), (v) => set(f, v === "" ? null : (v === "true" ? true : v === "false" ? false : v)), { style: "width:210px" });
+    return h("tr", {}, h("td", {}, label), h("td", {}, markChanged(control, changedField(kind, key, f))));
+  });
+  openModal([h("h2", {}, title),
+    h("p", { class: "hint" }, "These replace Honcho's value for this one dream. “· Honcho” is what Honcho uses when nothing here sets it."),
+    h("table", {}, h("tbody", {}, rows)),
+    kind === "defaults" ? null : h("div", { style: "margin-top:12px" }, h("button", { onclick: () => { resetRow(kind, key); closeModal(); render(); } }, "Reset this row to defaults")),
+    h("p", { class: "hint" }, "Changes wait for Review.")]);
+}
+function resetRow(kind, key) {
+  const block = S.settings[kind][key];
+  for (const f of MAIN_FIELDS.concat(LIMIT_FIELDS)) delete block[f];
+  delete block.rerank;
+  if (kind === "peers") block.backend = null;
+}
+function setBlock(container, key, field, value) {
+  const block = container[key] || (container[key] = {});
+  // Inherit: backend may be null in settings.json; every other field is left out.
+  if (value === null || value === "") { if (field === "backend") block[field] = null; else delete block[field]; }
+  else { block[field] = value; if (field === "backend") { const [b, ...m] = value.split(":"); ensureListed(S.settings, b, m.join(":")); } }
+}
+const BULK_FIELDS = { enabled: "Dreams (at once)", reset: "Reset to defaults", brief: "Brief", effort: "Effort", deduction_rounds: "Deduction rounds", induction_rounds: "Induction rounds", backend: "Model" };
+function bulkValues(field, kind) {
+  const inherit = { value: "", label: kind === "pairs" ? "Inherit (from the peer, then defaults)" : "Inherit (from Defaults)" };
+  if (field === "enabled") return [{ value: "true", label: "Enabled" }, { value: "false", label: "Disabled" }];
+  if (field === "backend") return [inherit].concat(dreamModelOptions());
+  if (field === "effort") return [inherit].concat(EFFORTS.map(effortOption));
+  return [inherit].concat((field === "brief" ? BRIEFS : ROUNDS).map((n) => ({ value: String(n), label: String(n) })));
+}
+// One dream switch for both pages. A pair runs when it is not in scheduler.skip and both its peers are on; a peer's
+// own dreams are its pair with itself. A pair switched On turns its peers On; a peer whose pairs are all Off goes Off.
+function allPairKeys(s) {
+  const keys = new Set(Object.keys(s.pairs || {}));
+  for (const name of Object.keys(s.peers || {})) keys.add(pairKey(name, name));
+  return [...keys];
+}
+const pairHas = (key, name) => key.split("/").includes(name);
+function pairRuns(s, key) {
+  const on = (name) => !!s.peers[name] && s.peers[name].enabled !== false;
+  const [a, b] = key.split("/");
+  return on(a) && on(b) && !(s.scheduler.skip || []).includes(key);
+}
+function setPairOn(s, key, want) {
+  const skip = s.scheduler.skip = (s.scheduler.skip || []).filter((k) => k !== key);
+  const names = [...new Set(key.split("/"))];
+  if (want) {
+    for (const name of names) {
+      if (s.peers[name] && s.peers[name].enabled !== false) continue;
+      // A peer coming back On keeps its other pairs Off, as they were shown.
+      for (const k of allPairKeys(s)) if (k !== key && pairHas(k, name) && !skip.includes(k)) skip.push(k);
+      s.peers[name] = { ...(s.peers[name] || {}), enabled: true };
+    }
+    return;
+  }
+  skip.push(key);
+  for (const name of names) if (s.peers[name] && !allPairKeys(s).some((k) => pairHas(k, name) && pairRuns(s, k))) s.peers[name].enabled = false;
+}
+function setPeerOn(s, name, want) {
+  if (want) { setPairOn(s, pairKey(name, name), true); return; }
+  const skip = s.scheduler.skip = s.scheduler.skip || [];
+  const others = new Set();
+  for (const k of allPairKeys(s)) if (pairHas(k, name)) { if (!skip.includes(k)) skip.push(k); k.split("/").forEach((n) => others.add(n)); }
+  s.peers[name].enabled = false;
+  // A peer whose only running pairs were with this one has none left: it goes Off too.
+  for (const other of others) if (s.peers[other] && !allPairKeys(s).some((k) => pairHas(k, other) && pairRuns(s, k))) s.peers[other].enabled = false;
+}
+function bulkBar(kind, apply) {
+  const selected = S.selected[kind];
+  const st = S.bulk[kind] || (S.bulk[kind] = { field: "enabled", value: "true" });
+  const isReset = st.field === "reset";
+  return h("div", { class: "bulk" }, h("b", {}, selected.size + " selected:"),
+    choice(Object.entries(BULK_FIELDS).map(([v, l]) => ({ value: v, label: l })), st.field, (v) => { st.field = v; st.value = v === "enabled" ? "true" : ""; render(); }),
+    isReset ? null : h("span", {}, "to"), isReset ? null : choice(bulkValues(st.field, kind), st.value, (v) => { st.value = v; }),
+    h("button", { class: "pri", onclick: async () => {
+      if (st.field === "enabled") {
+        const on = st.value === "true"; const keys = [...selected];
+        await writeSettingsNow((s) => {
+          for (const k of keys) (kind === "peers" ? setPeerOn : setPairOn)(s, k, on);
+        }, "Dreams " + (on ? "enabled" : "disabled") + " for " + keys.length + (kind === "peers" ? " peers." : " pairs."));
+        return;
+      }
+      for (const key of selected) {
+        if (isReset) resetRow(kind, key);
+        else { const raw = st.value; apply(key, st.field, raw === "" ? null : (["brief", "deduction_rounds", "induction_rounds"].includes(st.field) ? Number(raw) : raw)); }
+      }
+      render();
+    } }, "Apply"),
+    kind === "pairs" ? h("button", { onclick: () => { for (const k of selected) delete S.settings.pairs[k]; selected.clear(); render(); } }, "Remove selected") : null,
+    h("button", { class: "lnk", onclick: () => { selected.clear(); render(); } }, "Clear selection"));
+}
+function selectAllBox(kind, keys) {
+  const selected = S.selected[kind];
+  return h("input", { type: "checkbox", title: "Select all", checked: selected.size > 0 && selected.size === keys.length,
+    onchange: (e) => { selected.clear(); if (e.target.checked) keys.forEach((k) => selected.add(k)); render(); } });
+}
+function rowBox(kind, key) {
+  const selected = S.selected[kind];
+  return h("input", { type: "checkbox", checked: selected.has(key), onchange: (e) => { if (e.target.checked) selected.add(key); else selected.delete(key); render(); } });
+}
+const TABLE_HEAD = ["Brief", "Effort", "Deduction", "Induction", "Model", "Limits"];
+function pagePeers() {
+  const peers = S.settings.peers, defaults = S.settings.defaults;
+  const keys = Object.keys(peers);
+  const enabledNow = (name) => (S.settings0.peers[name] || {}).enabled !== false;
+  const rows = keys.map((name) => h("tr", { class: enabledNow(name) ? "" : "off" },
+    h("td", {}, rowBox("peers", name)),
+    h("td", { class: "name" }, h("button", { class: "name", title: "Show this peer's card", onclick: () => showCard(name) }, name)),
+    h("td", {}, sw(enabledNow(name), "On", "Off", (on) => writeSettingsNow((s) => setPeerOn(s, name, on),
+      on ? "Dreams on for " + name + " → " + name + "." : "Dreams off for " + name + " and every pair with it."))),
+    ...cells("peers", name, (f, v) => { setBlock(peers, name, f, v); render(); })));
+  const defaultsRow = h("tr", { class: "defaults" }, h("td", {}), h("td", {}, "Defaults"), h("td", { class: "hint" }, "every peer"),
+    ...cells("defaults", null, (f, v) => { if (v === null && f !== "backend") return; defaults[f] = v; render(); }));
+  const discovered = (S.peersApi.discovered || []).filter((n) => !(n in peers));
+  return [
+    h("h1", {}, "Peers"),
+    h("p", { class: "lead" }, "Dreams: a peer is On while any of its pairs (Pairs page) is On. On starts its own pair (the peer with itself); Off stops every pair with it, here and on Pairs. Switches act at once. “· default” values come from the Defaults row; pick a value to set it for one peer. Changed values are outlined in amber until written. ⋯ opens the dream limits for that row. Click a name for its peer card."),
+    S.selected.peers.size ? bulkBar("peers", (k, f, v) => setBlock(peers, k, f, v)) : null,
+    h("div", { class: "box" }, h("div", { class: "in tw" }, h("table", {},
+      h("thead", {}, h("tr", {}, h("th", {}, selectAllBox("peers", keys)), h("th", {}, "Peer"), h("th", {}, "Dreams"), TABLE_HEAD.map((t) => h("th", {}, t)))),
+      h("tbody", {}, defaultsRow, rows)))),
+    discovered.length ? h("div", { class: "box" }, h("h2", {}, "In Honcho, no memory yet"), h("div", { class: "in" },
+      h("p", { class: "hint" }, "These peers exist in Honcho but have no memory to dream, so the scheduler has not added them. They join the list by themselves once they have memory."),
+      discovered.map((n) => h("div", { style: "margin:4px 0" }, h("b", {}, n), "  ", h("button", { onclick: () => writeSettingsNow((s) => { s.peers[n] = { enabled: false }; }, n + " added with dreams off.") }, "Add now (dreams off)"))))) : null,
+  ];
+}
+function pairKey(a, b) { return a + "/" + b; }
+function pagePairs() {
+  const pairs = S.settings.pairs, d = S.settings.defaults;
+  if (!Array.isArray(S.settings.scheduler.skip)) S.settings.scheduler.skip = [];
+  const skip0 = S.settings0.scheduler.skip || [];
+  const names = Object.keys(S.settings.peers);
+  // Every pair, the peers' own (peer → same peer) included, grouped by observer in the Peers page order.
+  const rank = (name) => { const i = names.indexOf(name); return i < 0 ? names.length : i; };
+  const keys = allPairKeys(S.settings).sort((x, y) => {
+    const [a, b] = x.split("/"), [c, d] = y.split("/");
+    // Each peer's own pair first (A → A, B → B …), in Peers page order; then the pairs between two peers.
+    return (a !== b) - (c !== d) || rank(a) - rank(c) || rank(b) - rank(d) || x.localeCompare(y);
+  });
+  const rename = (oldKey, a, b) => {
+    const key = pairKey(a, b);
+    if (key === oldKey) return;
+    if (keys.includes(key)) { note("That pair already exists.", true); return; }
+    // A peer's own pair that is not in the file yet stays (it is the peer's); re-pointing it adds the new pair.
+    if (!(oldKey in pairs)) { pairs[key] = {}; render(); return; }
+    S.settings.pairs = Object.fromEntries(Object.entries(pairs).map(([k, v]) => (k === oldKey ? [key, v] : [k, v])));
+    const skip = S.settings.scheduler.skip; const i = skip.indexOf(oldKey); if (i >= 0) skip[i] = key;
+    render();
+  };
+  const rows = keys.map((key) => {
+    const [a, b] = key.split("/");
+    const peerSel = (value, onchange) => choice(names.map((n) => ({ value: n, label: n })), value, onchange, { style: "width:90px" });
+    const on = pairRuns(S.settings0, key);
+    const names2 = [peerSel(a, (v) => rename(key, v, b)), " → ", peerSel(b, (v) => rename(key, a, v))];
+    return h("tr", { class: on ? "" : "off" },
+      h("td", {}, rowBox("pairs", key)),
+      h("td", { class: "name" }, names2),
+      h("td", {}, sw(on, "On", "Off", (want) => writeSettingsNow((s) => setPairOn(s, key, want),
+        want ? "Dreams on for " + a + " → " + b + "; " + [...new Set([a, b])].join(" and ") + " on." : "Dreams off for " + a + " → " + b + "."))),
+      ...cells("pairs", key, (f, v) => { setBlock(pairs, key, f, v); render(); }));
+  });
+  const reference = h("tr", { class: "defaults" }, h("td", {}), h("td", { colspan: 2 }, "Defaults (set on Peers)"),
+    h("td", { class: "hint" }, String(d.brief ?? "—")), h("td", { class: "hint" }, d.effort || "Model default"), h("td", { class: "hint" }, String(d.deduction_rounds ?? "—")), h("td", { class: "hint" }, String(d.induction_rounds ?? "—")),
+    h("td", { class: "hint" }, d.backend ? shortLabel(d.backend) : "Active: " + shortLabel(activeRef(S.settings))), h("td", {}));
+  // The pair to add is picked first.
+  if (!S.addPair || !names.includes(S.addPair.a) || !names.includes(S.addPair.b)) {
+    S.addPair = { a: names[0] || "", b: names[1] || names[0] || "" };
+  }
+  const pick = S.addPair;
+  const pickSel = (field) => choice(names.map((n) => ({ value: n, label: n })), pick[field], (v) => { pick[field] = v; render(); }, { style: "width:120px" });
+  const add = () => {
+    const key = pairKey(pick.a, pick.b);
+    if (keys.includes(key)) { note("The pair " + pick.a + " → " + pick.b + " already exists.", true); return; }
+    pairs[key] = {}; S.addPair = null;
+    note("Added the pair " + pick.a + " → " + pick.b + ". Review, then Write, to save it.");
+  };
+  const adder = names.length
+    ? h("div", { style: "margin-top:8px" }, "Add the pair ", pickSel("a"), " → ", pickSel("b"), " ", h("button", { onclick: add }, "Add pair"))
+    : h("p", { class: "hint" }, "Pairs are made from the peers on the Peers page; none is listed yet.");
+  return [
+    h("h1", {}, "Pairs"),
+    h("p", { class: "lead" }, "A pair is one dream: what the observer knows about the observed peer. Each peer's own pair is listed too. Switching a pair On turns its peers On; a peer whose pairs are all Off goes Off. Pairs found in Honcho are added by the scheduler (in scheduler mode) Off. Switches act at once. A value not set on the pair comes from the observer peer (“· peer”), then the Defaults (“· default”). Changed values are outlined in amber until written."),
+    S.settings.mode === "scheduler" ? null : h("p", { class: "bad" }, "Scheduling is off (Overview, Who starts dreams): Honcho starts dreams itself, and only a peer switched Off stops them. These pair switches decide which dreams run once this scheduler starts them; the scheduler also adds the pairs it finds in Honcho then."),
+    S.selected.pairs.size ? bulkBar("pairs", (k, f, v) => setBlock(pairs, k, f, v)) : null,
+    h("div", { class: "box" }, h("div", { class: "in" }, h("div", { class: "tw" }, h("table", {},
+      h("thead", {}, h("tr", {}, h("th", {}, selectAllBox("pairs", keys)), h("th", {}, "Observer → observed"), h("th", {}, "Dreams"), TABLE_HEAD.map((t) => h("th", {}, t)))),
+      h("tbody", {}, reference, rows))), adder)),
+  ];
+}
+async function showCard(name) {
+  openModal([h("h2", {}, "Peer card: " + name), h("p", { class: "hint" }, "Loading…")]);
+  try {
+    const d = await api("/api/card?name=" + encodeURIComponent(name));
+    const lines = d.card || d.lines || d.peer_card;
+    openModal([h("h2", {}, "Peer card: " + name), h("pre", { class: "log", style: "height:auto;max-height:60vh" }, Array.isArray(lines) ? lines.join("\n") : JSON.stringify(d, null, 2))]);
+  } catch (e) { openModal([h("h2", {}, "Peer card: " + name), h("div", { class: "err" }, e.message)]); }
+}
+
+// ---------- rerank ----------
+// Per-dream rerank: settings.json key, label, component default, control (true/false, an enum, numbers, "text" or "number").
+const RERANK = [
+  ["enabled", "Rerank", false, [true, false]],
+  ["provider", "Provider", "voyage", ["voyage", "cohere", "jina", "tei"]],
+  ["model", "Model", "rerank-3-lite", "text"],
+  ["base_url", "API root (base_url)", null, "text"],
+  ["candidates", "Candidates", 100, [25, 50, 100, 200, 500, 1000]],
+  ["max_documents", "Documents per request", null, [32, 100, 500, 1000]],
+  ["timeout_seconds", "Timeout (seconds)", 5, [1, 2, 3, 5, 10, 30]],
+  ["min_score", "Minimum score", null, "number"],
+  ["daily_request_cap", "Daily request cap", null, [0, 100, 500, 1000, 2000, 5000]],
+];
+// Global-only keys: the pause state is shared by every dream, and the query cut applies to every search.
+const RERANK_GLOBAL_ONLY = [
+  ["max_query_chars", "Query cut (characters)", 2000, [500, 1000, 2000, 4000]],
+  ["failures_before_cooldown", "Failures before a pause", 3, [1, 2, 3, 5, 10]],
+  ["cooldown_seconds", "Pause (seconds)", 60, [0, 30, 60, 300, 900]],
+];
+// What the component does when a key is set nowhere (src/rerank/honcho_rerank/client.py), shown instead of a blank.
+const RERANK_URLS = { voyage: "https://api.voyageai.com/v1", cohere: "https://api.cohere.com/v2", jina: "https://api.jina.ai/v1" };
+const RERANK_MAX_DOCS = { voyage: 1000, cohere: 1000, jina: 1000, tei: 32 };
+function rerankUnset(f, provider) {
+  if (f === "base_url") return RERANK_URLS[provider] || "none: tei needs its own";
+  if (f === "max_documents") return RERANK_MAX_DOCS[provider] ?? 1000;
+  if (f === "min_score") return "none";
+  if (f === "daily_request_cap") return "no cap";
+  return null;
+}
+const RERANK_CALLERS = ["dream", "dialectic", "prefetch", "conclusions_api"];
+const RERANK_DEFAULT_CALLERS = ["dream", "dialectic", "prefetch"];
+const RERANK_NAMES = Object.fromEntries(RERANK.concat(RERANK_GLOBAL_ONLY).map(([f, label]) => [f, label]));
+const RERANK_MAIN = ["enabled", "provider", "model", "candidates", "daily_request_cap"];
+const RERANK_EXTRA = RERANK.map((r) => r[0]).filter((f) => !RERANK_MAIN.includes(f));
+function rerankBlock(kind, key) { return (rowBlock(kind, key) || {}).rerank || {}; }
+function rerankSaved(kind, key) { return savedBlock(kind, key).rerank || {}; }
+function rerankChanged(kind, key, f) { return !same(rerankBlock(kind, key)[f], rerankSaved(kind, key)[f]); }
+// Where a rerank value comes from, the hook's chain: pair, observer peer, observed peer, defaults, the global block, then the component's own default.
+function rerankInherited(kind, key) {
+  const out = {};
+  const put = (block, src) => { for (const [f, v] of Object.entries((block || {}).rerank || {})) if (v != null && !(f in out)) out[f] = { value: v, src }; };
+  if (kind === "pairs") { const [a, b] = key.split("/"); put(S.settings.peers[a], "observer"); if (b !== a) put(S.settings.peers[b], "observed"); }
+  if (kind !== "defaults") put(S.settings.defaults, "default");
+  for (const [f, , fallback] of RERANK) if (!(f in out)) { const g = (S.settings.rerank || {})[f]; out[f] = g != null ? { value: g, src: "global" } : { value: fallback ?? rerankUnset(f, out.provider ? out.provider.value : "voyage"), src: "component default" }; }
+  return out;
+}
+// The global block: the keys the component reads for the API and the deriver, hot.
+function rerankGlobal() { return S.settings.rerank || {}; }
+function rerankGlobalChanged(f) { return !same(rerankGlobal()[f], (S.settings0.rerank || {})[f]); }
+function setRerankGlobal(f, v) {
+  const block = S.settings.rerank = S.settings.rerank || {};
+  if (v == null || v === "") delete block[f]; else block[f] = v;
+  if (!Object.keys(block).length) delete S.settings.rerank;
+  render();
+}
+function rerankGlobalBox() {
+  const block = rerankGlobal();
+  const rows = RERANK.concat(RERANK_GLOBAL_ONLY).map(([f, label, fallback, control]) => h("tr", {}, h("td", {}, label),
+    h("td", {}, markChanged(rerankControl(f, control, block[f], { value: fallback ?? rerankUnset(f, block.provider || "voyage"), src: "component default" }, (v) => setRerankGlobal(f, v), 260), rerankGlobalChanged(f)))));
+  const current = Array.isArray(block.callers) ? block.callers : RERANK_DEFAULT_CALLERS;
+  rows.push(h("tr", {}, h("td", {}, "Callers"), h("td", {}, markChanged(h("span", { class: "levels" }, RERANK_CALLERS.map((item) => h("label", {}, h("input", { type: "checkbox", checked: current.includes(item),
+    onchange: (e) => { const next = RERANK_CALLERS.filter((x) => (x === item ? e.target.checked : current.includes(x))); setRerankGlobal("callers", same(next, RERANK_DEFAULT_CALLERS) ? null : next); } }), item))), rerankGlobalChanged("callers")))));
+  const warn = S.rerankWarnings || {};
+  const ef = warn.ef_search == null ? "unknown" : warn.ef_search;
+  return h("div", { class: "box" }, h("h2", {}, "Global (api and deriver, hot)"), h("div", { class: "in" },
+    h("p", { class: "hint" }, "The rerank block of settings.json, read by the honcho_rerank component in both the API and the deriver. It is re-read when the file changes, with no restart. A value not set uses the component's default (“· component default”). The per-dream table below replaces these keys for one dream. The key is RERANK_API_KEY in the environment of both containers, never here."),
+    h("p", { class: "hint" }, "ef_search from the containers' PGOPTIONS: " + ef + (warn.iterative_scan && warn.iterative_scan !== "unknown" ? " (iterative scan " + warn.iterative_scan + ")" : "") + ". Candidates above ef_search can return fewer rows than asked. “unknown” means no container environment could be read: set PGOPTIONS on the dashboard service too, or check that the docker proxy is running."),
+    h("table", {}, h("tbody", {}, rows))));
+}
+function setRerank(kind, key, f, v) {
+  const block = kind === "defaults" ? S.settings.defaults : (S.settings[kind][key] || (S.settings[kind][key] = {}));
+  if (v == null || v === "") { if (block.rerank) { delete block.rerank[f]; if (!Object.keys(block.rerank).length) delete block.rerank; } }
+  else (block.rerank = block.rerank || {})[f] = v;
+  render();
+}
+// A number from a list, or any number typed in (0 and negatives allowed where the field allows them).
+function anyNumber(list, value, inheritLabel, onchange, width, min) {
+  const options = [{ value: "", label: inheritLabel }].concat(list.map((n) => ({ value: String(n), label: String(n) })), [{ value: "__custom", label: "Other number…" }]);
+  const select = choice(options, value == null ? "" : value, (picked) => {
+    if (picked !== "__custom") return onchange(picked === "" ? null : Number(picked));
+    const input = h("input", { type: "number", step: "any", min, style: "width:" + width + "px", onchange: (e) => { if (e.target.value !== "" && isFinite(Number(e.target.value))) onchange(Number(e.target.value)); } });
+    select.replaceWith(input); input.focus();
+  }, { style: "width:" + width + "px" });
+  return select;
+}
+function rerankControl(f, control, value, inherit, onchange, width) {
+  const inheritLabel = "Inherit: " + tagOf(inherit);
+  if (control === "text" || control === "number") {
+    const input = h("input", { type: control, step: control === "number" ? "any" : undefined, class: value == null ? "inherit" : "", placeholder: inheritLabel, style: "width:" + width + "px",
+      onchange: (e) => onchange(e.target.value === "" ? null : (control === "number" ? Number(e.target.value) : e.target.value)) });
+    input.value = value == null ? "" : value;
+    return input;
+  }
+  if (typeof control[0] === "number") return anyNumber(control, value, inheritLabel, onchange, width, f === "min_score" ? undefined : 0);
+  return choice([{ value: "", label: inheritLabel }].concat(control.map((v) => ({ value: String(v), label: String(v) }))), value == null ? "" : String(value),
+    (v) => onchange(v === "" ? null : v === "true" ? true : v === "false" ? false : v), { style: "width:" + width + "px" });
+}
+function rerankCells(kind, key) {
+  const block = rerankBlock(kind, key), inh = rerankInherited(kind, key);
+  const cells = RERANK_MAIN.map((f) => {
+    const [, , , control] = RERANK.find((r) => r[0] === f);
+    return h("td", {}, markChanged(rerankControl(f, control, block[f], inh[f], (v) => setRerank(kind, key, f, v), f === "model" ? 150 : 112), rerankChanged(kind, key, f)));
+  });
+  const set = RERANK_EXTRA.filter((f) => block[f] != null).length;
+  const changed = RERANK_EXTRA.some((f) => rerankChanged(kind, key, f));
+  cells.push(h("td", {}, markChanged(h("button", { class: set ? "has" : "", title: "The other rerank fields for this row", onclick: () => openRerankExtra(kind, key) }, set ? "⋯ " + set : "⋯"), changed)));
+  return cells;
+}
+function openRerankExtra(kind, key) {
+  const block = rerankBlock(kind, key), inh = rerankInherited(kind, key);
+  const title = kind === "defaults" ? "Rerank for every dream" : kind === "peers" ? "Rerank for " + key : "Rerank for " + key.replace("/", " → ");
+  const rows = RERANK.map(([f, label, , control]) => h("tr", {}, h("td", {}, label),
+    h("td", {}, markChanged(rerankControl(f, control, block[f], inh[f], (v) => { setRerank(kind, key, f, v); openRerankExtra(kind, key); }, 260), rerankChanged(kind, key, f)))));
+  openModal([h("h2", {}, title),
+    h("p", { class: "hint" }, "These replace the global rerank value for this one dream, at the next dream, without a restart. “· global” and “· component default” are what the dream uses when nothing here sets it. Callers and the pause settings are global only. The key never lives here: it is RERANK_API_KEY in the environment."),
+    h("table", {}, h("tbody", {}, rows)),
+    kind === "defaults" ? null : h("div", { style: "margin-top:12px" }, h("button", { onclick: () => { for (const f of Object.keys(block)) setRerank(kind, key, f, null); closeModal(); } }, "Clear this row's rerank values")),
+    h("p", { class: "hint" }, "Changes wait for Review.")]);
+}
+// One Honcho config.toml field as a control: unset shows Honcho's default faded; a value equal to the default is not written.
+function honchoControl(path, width) {
+  const f = S.hIndex[path];
+  if (!f) return h("span", { class: "hint" }, "not in the schema (regenerate config/honcho-config.schema.json)");
+  const def = f.default;
+  const own = path in S.hEdits ? S.hEdits[path] : (f.is_default ? null : f.value);
+  const defLabel = (def == null ? "unset" : Array.isArray(def) ? def.join(", ") : String(def)) + " · Honcho default";
+  const set = (v) => { hSet(path, v); render(); };
+  const style = "width:" + (width || 180) + "px";
+  let node;
+  if (f.type === "boolean") node = choice([{ value: "", label: defLabel }, { value: "true", label: "true" }, { value: "false", label: "false" }], own == null ? "" : String(own), (v) => set(v === "" ? null : v === "true"), { style });
+  else if (f.type === "array") {
+    const current = Array.isArray(own) ? own : (def || []);
+    node = h("span", { class: "levels" }, (f.enum || []).map((item) => h("label", {}, h("input", { type: "checkbox", checked: current.includes(item),
+      onchange: (e) => { const next = f.enum.filter((x) => (x === item ? e.target.checked : current.includes(x))); set(same(next, def) ? null : next); } }), item)));
+  } else if (f.enum) node = choice([{ value: "", label: defLabel }].concat(f.enum.map((v) => ({ value: v, label: v }))), own == null ? "" : own, (v) => set(v === "" ? null : v), { style });
+  else if (f.type === "integer" || f.type === "number") {
+    node = h("input", { type: "number", step: f.type === "integer" ? "1" : "any", class: own == null ? "inherit" : "", placeholder: defLabel, style, onchange: (e) => set(e.target.value === "" ? null : Number(e.target.value)) });
+    node.value = own == null ? "" : own;
+  } else {
+    node = h("input", { type: "text", class: own == null ? "inherit" : "", placeholder: defLabel, style, onchange: (e) => set(e.target.value === "" ? null : e.target.value) });
+    node.value = own == null ? "" : own;
+  }
+  if (f.read_only) node.disabled = true;
+  return markChanged(node, path in S.hEdits);
+}
+function honchoLabel(path, text) {
+  const f = S.hIndex[path] || {};
+  const bounds = f.constraints ? Object.entries(f.constraints).map(([k, v]) => ({ gt: "> " + v, ge: "≥ " + v, lt: "< " + v, le: "≤ " + v })[k] || k + " " + v).join(", ") : "";
+  return h("label", { title: [f.description, bounds, "env " + (f.env || "")].filter(Boolean).join("\n") }, text || path.split(".").pop(), honchoControl(path));
+}
+function pageRerank() {
+  const peers = Object.keys(S.settings.peers), pairs = Object.keys(S.settings.pairs || {});
+  const head = h("thead", {}, h("tr", {}, h("th", {}, "Row"), RERANK_MAIN.map((f) => h("th", { title: "rerank " + f }, RERANK_NAMES[f])), h("th", {}, "More")));
+  const rows = [h("tr", { class: "defaults" }, h("td", {}, "Defaults", h("div", { class: "hint" }, "every dream")), ...rerankCells("defaults", null))];
+  for (const name of peers) rows.push(h("tr", { class: (S.settings0.peers[name] || {}).enabled === false ? "off" : "" }, h("td", { class: "name" }, name), ...rerankCells("peers", name)));
+  for (const key of pairs) rows.push(h("tr", {}, h("td", { class: "name" }, key.replace("/", " → ")), ...rerankCells("pairs", key)));
+  return [
+    h("h1", {}, "Rerank"),
+    ...((S.rerankWarnings && S.rerankWarnings.warnings) || []).map((warning) => h("p", { class: "warn" }, warning)),
+    h("p", { class: "lead" }, "Reranking re-orders a dream's memory searches with a reranker (Voyage, Cohere, Jina or a server of your own). The table sets it per dream from settings.json: a pair, then the observer peer, then the observed peer, then Defaults, then the global block above, then the component's default. A value not set inherits and shows faded. Changes wait for Review and apply at the next dream, without a restart. The key stays in the environment (RERANK_API_KEY), never here."),
+    rerankGlobalBox(),
+    h("div", { class: "box" }, h("h2", {}, "Per dream (settings.json)"), h("div", { class: "in tw" }, h("table", {}, head, h("tbody", {}, rows)))),
+    rerankStatsBox(),
+  ];
+}
+async function refreshRuns() {
+  const params = new URLSearchParams({ pair: S.runsPair || "", date: S.runsDate || "" });
+  try { S.runs = await api("/api/runs?" + params); render(); } catch (e) { note(e.message, true); }
+}
+function pageRuns() {
+  const data = S.runs || {}, rows = data.runs || [];
+  const ms = (value) => value == null ? "unknown" : Math.round(value) + " ms";
+  return [h("h1", {}, "Runs"), h("p", { class: "lead" }, "Completed dreams and the settings each used, joined to telemetry by run ID. Times and dates are UTC. Missing telemetry is unknown; counts may be sampled."),
+    h("div", { class: "row" },
+      h("label", {}, "Pair (observer/observed)", h("input", { value: S.runsPair || "", onchange: (e) => { S.runsPair = e.target.value; refreshRuns(); } })),
+      h("label", {}, "Date (blank: last 7 days)", h("input", { type: "date", value: S.runsDate || "", onchange: (e) => { S.runsDate = e.target.value; refreshRuns(); } })),
+      h("button", { onclick: refreshRuns }, "Refresh")),
+    data.truncated ? h("p", { class: "warn" }, "Partial results: a log or telemetry read limit was reached.") : null,
+    data.errors && data.errors.length ? h("p", { class: "warn" }, "Some telemetry files could not be read.") : null,
+    h("div", { class: "box tw" }, h("table", {},
+      h("thead", {}, h("tr", {}, ["Started", "Pair / run", "Settings used", "Rerank outcomes", "Tokens", "p50 / p95", "Dream duration", "Conclusions created", "Known API estimate"].map((label) => h("th", {}, label)))),
+      h("tbody", {}, rows.map((row) => {
+        const stats = row.rerank_stats || {}, dream = row.dream || {};
+        const summary = { mode: row.mode, source: row.source, configured_fallback_backend: row.backend, stage_backends: row.stage_backends, brief: row.brief, deduction_rounds: row.deduction_rounds, induction_rounds: row.induction_rounds, rerank: row.rerank };
+        return h("tr", {}, h("td", {}, whenUtc(row.started)), h("td", {}, row.observer + " → " + row.observed, h("div", { class: "mono hint" }, row.run_id)),
+          h("td", {}, h("details", {}, h("summary", {}, "Configured fallback / stage aliases"), h("pre", {}, JSON.stringify(summary, null, 2))), h("div", { class: "hint" }, "Observed model / backend / billing (telemetry):"), (row.observed_models || []).length ? row.observed_models.map((m) => h("div", {}, m.stage + ": " + m.model + " / " + m.backend + " / " + m.billing_route + " · " + m.calls + " calls (" + m.evidence + ")")) : h("div", { class: "hint" }, "unknown; historical aliases do not identify the upstream model")),
+          h("td", {}, Object.entries(stats.outcomes || {}).map(([name, count]) => h("div", {}, name + ": " + count))),
+          h("td", {}, stats.tokens == null ? "unknown" : String(stats.tokens)),
+          h("td", {}, ms(stats.duration_ms && stats.duration_ms.p50) + " / " + ms(stats.duration_ms && stats.duration_ms.p95)),
+          h("td", {}, ms(dream.duration_ms), (dream.specialists || []).map((specialist) => h("div", { class: "hint" }, specialist.type + ": " + ms(specialist.duration_ms)))),
+          h("td", {}, dream.conclusions_created == null ? "unknown" : String(dream.conclusions_created)),
+          h("td", {}, usd(row.cost && row.cost.estimated_usd), h("div", { class: "hint" }, row.cost ? row.cost.priced_calls + "/" + row.cost.calls + " calls priced" : "no usage/rate evidence")));
+      })))), rows.length ? null : h("p", { class: "hint" }, "No completed run records for these filters.")];
+}
+
+function usd(value) { return value == null ? "no rate / unknown" : "$" + Number(value).toFixed(6); }
+function costCard() {
+  const cost = S.cost;
+  return h("div", { class: "box" }, h("h2", {}, "Estimated API cost (last 7 UTC days)"), h("div", { class: "in" },
+    h("b", {}, usd(cost && cost.estimated_usd)), h("p", { class: "hint" }, cost ? cost.priced_calls + "/" + cost.calls + " calls priced; " + cost.subscription_calls + " subscription; " + cost.unknown_route_calls + " unknown billing route. Rates and telemetry give estimates, not an invoice." : "No cost summary."),
+    h("a", { href: "#cost" }, "Cost by day and stage")));
+}
+async function refreshCost() {
+  try { S.costDetail = await api("/api/cost?" + new URLSearchParams({ date: S.costDate || "" })); render(); } catch (e) { note(e.message, true); }
+}
+function pageCost() {
+  const cost = S.costDetail || S.cost || {}, rows = cost.rows || [];
+  return [h("h1", {}, "Cost"), h("p", { class: "lead" }, "List-price estimates from tokens and rates.json in the config folder. Unknown routes are excluded from known API spend; CLI subscription usage is tokens only. Missing rates never become zero."),
+    h("div", { class: "row" }, h("label", {}, "UTC date (blank: last 7 days)", h("input", { type: "date", value: S.costDate || "", onchange: (e) => { S.costDate = e.target.value; refreshCost(); } })), h("button", { onclick: refreshCost }, "Refresh")),
+    h("p", {}, "Known API estimate: ", h("b", {}, usd(cost.estimated_usd)), "; potential API estimate for unknown routes: ", usd(cost.potential_api_usd)),
+    h("p", { class: "hint" }, (cost.priced_calls || 0) + "/" + (cost.calls || 0) + " calls priced. " + (cost.no_rate_calls || 0) + " have no rate; " + (cost.subscription_calls || 0) + " subscription; " + (cost.unknown_route_calls || 0) + " unknown route. Telemetry may be sampled."),
+    cost.rate_error ? h("p", { class: "warn" }, cost.rate_error) : null,
+    cost.truncated || cost.errors && cost.errors.length ? h("p", { class: "warn" }, "Partial coverage: telemetry scan limit or unreadable files.") : null,
+    h("div", { class: "box tw" }, h("table", {}, h("thead", {}, h("tr", {}, ["UTC day", "Stage", "Model", "Route", "Calls / priced", "Tokens", "Estimate USD", "Coverage notes"].map((label) => h("th", {}, label)))),
+      h("tbody", {}, rows.map((row) => h("tr", {}, h("td", {}, row.day), h("td", {}, row.stage, h("div", { class: "hint" }, row.kind)), h("td", {}, row.model, h("div", { class: "hint" }, "backend: " + (row.backend || "unknown") + " · " + (row.routing_evidence || "unknown evidence")), row.model === "stage-route" || row.model.startsWith("@") ? h("div", { class: "hint" }, "historical alias; actual upstream model unknown") : null),
+        h("td", {}, row.billing_route === "cli" ? "subscription" : row.billing_route), h("td", {}, row.calls + " / " + row.priced_calls),
+        h("td", {}, row.tokens == null ? "unknown" : String(row.tokens), row.tokens_unknown ? " (partial)" : ""),
+        h("td", {}, row.billing_route === "cli" ? "tokens only" : usd(row.estimated_usd), row.billing_route === "unknown" ? " (potential only)" : ""), h("td", {}, (row.notes || []).join("; ")))))))];
+}
+
+function rerankStatsBox() {
+  const st = S.rerankStats;
+  if (!st) return h("div", { class: "box" }, h("h2", {}, "Rerank calls"), h("div", { class: "in hint" }, "No telemetry summary (the dashboard could not read /api/rerank/stats)."));
+  const pct = (n, d) => (d ? Math.round((n / d) * 1000) / 10 + "%" : "—");
+  const ms = (v) => (v == null ? "—" : Math.round(v) + " ms");
+  const period = (name, p) => {
+    const c = p.last_counter;
+    const tiles = [["Calls", p.total], ["Reranked", p.outcomes.reranked || 0], ["Fallback rate", pct(p.fallbacks, p.total)],
+      ["Requests vs cap, last observed", name === "today" ? (c ? c.daily_requests + " / " + (c.daily_request_cap == null ? "no cap" : c.daily_request_cap) + " at " + whenUtc(c.time).slice(11) + " UTC" : "none reported") : null],
+      ["Tokens", p.tokens], ["Billed units", p.billed_units], ["Sent requests", p.sent],
+      ["Duration p50", ms(p.duration_ms.p50)], ["Duration p95", ms(p.duration_ms.p95)]].filter((x) => x[1] !== null);
+    const table = (title, obj) => h("div", { style: "min-width:220px" }, h("b", {}, title), h("table", {}, h("tbody", {}, Object.entries(obj).sort((a, b) => b[1] - a[1]).map(([k, v]) => h("tr", {}, h("td", {}, k), h("td", { style: "text-align:right" }, v))))));
+    return [h("h3", { style: "margin:10px 0 6px;font-size:13px" }, name === "today" ? "Today (UTC)" : "Last 7 days (UTC)"),
+      h("div", { class: "stats" }, tiles.map(([k, v]) => h("div", { class: "stat" }, h("div", { class: "k" }, k), h("div", { class: "v" }, v == null ? "—" : String(v))))),
+      p.total ? h("div", { class: "row", style: "margin-top:8px;align-items:start" }, table("By outcome", p.outcomes), table("By caller", p.callers)) : h("p", { class: "hint" }, "No rerank events in this period.")];
+  };
+  return h("div", { class: "box" }, h("h2", {}, "Rerank calls (telemetry)"), h("div", { class: "in" },
+    h("p", { class: "hint" }, "Read from the rerank.call.completed events in the telemetry folder (" + (st.files_read || 0) + " files read" + (st.errors && st.errors.length ? ", " + st.errors.length + " unreadable" : "") + "). Sent requests are calls with candidates sent, whatever their outcome; p50 and p95 come from a sample of their durations. Honcho samples high-volume events when [telemetry] HIGH_VOLUME_SAMPLE_RATE is below 1, so counts can be low. “Requests vs cap, last observed” is the counter the last reporting call saw: one count per UTC day across the api and the deriver when Honcho's cache (Redis) is enabled; otherwise each process counts on its own, only as current as that event, not a live value."),
+    st.truncated ? h("div", { class: "warn" }, "The scan stopped at its limit, so these numbers are partial: " + (st.truncated_reasons || []).join("; ")) : null,
+    period("today", st.today), period("week", st.week)));
+}
+
+// ---------- instructions ----------
+function instrRows(cat) { return ((S.instructions && S.instructions.rows) || []).filter((r) => r.category === cat); }
+function instrKey(r) { return r.scope + "|" + (r.name || "") + "|" + r.category; }
+function instrLabel(r) { return r.scope === "default" ? "All peers" : (r.scope === "peer" ? "Peer " : "Model ") + r.name; }
+function stageInstr(row, text) {
+  const own = row.file === row.target;
+  const before = own ? row.text || "" : "";
+  if (own && text === before) delete S.instr[instrKey(row)];
+  else S.instr[instrKey(row)] = { scope: row.scope, name: row.name, category: row.category, text, before: own ? before : "(no file yet)", label: instrLabel(row) + " (" + row.target + ")", mtime_ns: own ? row.mtime_ns : null };
+}
+function pageInstructions() {
+  const tabs = h("div", { class: "tabs" }, [["dream", "Dream"], ["peer-card", "Peer card"], ["prompts", "Intake, summary and question prompts"]].map(([id, label]) =>
+    h("button", { class: S.instrTab === id ? "on" : "", onclick: () => { S.instrTab = id; S.editor = null; render(); } }, label)));
+  return [h("h1", {}, "Instructions"), h("p", { class: "lead" }, "Extra text given to the model on top of Honcho's own prompt. Changes wait for Review."), tabs,
+    S.instrTab === "prompts" ? instrPrompts() : instrFiles(S.instrTab)];
+}
+function instrFiles(cat) {
+  const rows = instrRows(cat);
+  const def = rows.find((r) => r.scope === "default");
+  const own = rows.filter((r) => r.scope !== "default" && (r.file === r.target || S.instr[instrKey(r)]));
+  for (const item of Object.values(S.instr)) if (item.category === cat && item.scope !== "default" && !own.some((r) => instrKey(r) === instrKey(item)))
+    own.push({ scope: item.scope, name: item.name, category: cat, target: item.scope + "s/" + item.name + "/" + cat + ".md", file: "", text: "" });
+  const list = h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, "Used for"), h("th", {}, "Size"), h("th", {}))),
+    h("tbody", {}, [def].concat(own).filter(Boolean).map((r) => {
+      const p = S.instr[instrKey(r)]; const text = p ? p.text : r.text || "";
+      const isDefault = r.scope === "default";
+      const off = isDefault && ((S.instructions && S.instructions.switched_off) || []).includes(cat);
+      const onDisk = r.file === r.target;
+      const action = isDefault
+        ? sw(!off, "On", "Off", async (on) => {
+            try { await api("/api/instructions/switch", { category: cat, on }); await reloadPart("instructions", "/api/instructions"); S.notice = { text: "All peers text " + (on ? "on." : "off: dreams use the workspace text (folded below) unless a peer has its own.") }; } catch (e) { S.notice = { text: e.message, bad: true }; }
+            render();
+          })
+        : onDisk ? twoStep("Remove", "Click again", async () => {
+            try { await api("/api/instructions/remove", { scope: r.scope, name: r.name, category: cat, apply: true }); delete S.instr[instrKey(r)]; await reloadPart("instructions", "/api/instructions"); note("Removed " + instrLabel(r) + "; a copy is kept in backups/instructions."); } catch (e) { note(e.message, true); }
+          }) : h("span", { class: "hint" }, "not written yet");
+      return h("tr", { class: off ? "off" : "" }, h("td", { class: "name" }, h("b", {}, instrLabel(r)), p ? h("span", { class: "hint", style: "color:var(--amber)" }, "  changed") : null),
+        h("td", { class: "hint" }, off ? "off" : text ? Math.floor(text.length / 4) + " tokens" : "empty"),
+        h("td", {}, h("button", { onclick: () => { S.editor = r; render(); } }, "Open"), " ", action));
+    })));
+  const targets = Object.keys(S.settings.peers).map((p) => ({ value: "peer|" + p, label: "Peer " + p }));
+  let pick = targets.length ? targets[0].value : "";
+  const create = h("div", { class: "row", style: "margin-top:10px;align-items:center" }, h("span", {}, "Own text for"), choice(targets, pick, (v) => { pick = v; }),
+    h("button", { onclick: () => {
+      const [scope, name] = pick.split("|");
+      const row = instrRows(cat).find((r) => r.scope === scope && r.name === name) || { scope, name, category: cat, file: "", target: scope + "s/" + name + "/" + cat + ".md", text: "", mtime_ns: null };
+      stageInstr(row, (def && def.text) || ""); S.editor = row; render();
+    } }, "Start from the All peers text"));
+  const builtin = (S.instructions && S.instructions.database && S.instructions.database[cat]) || "";
+  return [
+    h("div", { class: "box" }, h("h2", {}, cat === "dream" ? "Dream instructions" : "Peer card instructions"), h("div", { class: "in" },
+      h("p", { class: "hint" }, "For each dream the first that exists is used: the observer peer's text, the observed peer's, All peers, then the workspace text (folded below). These texts were written for this setup; Honcho's own prompt is built into its code and always applies underneath. Switch All peers off to test without it; Remove deletes a peer's text (a copy is kept)."),
+      h("div", { class: "tw" }, list), create)),
+    S.editor && S.editor.category === cat ? editorBox(S.editor) : h("div", { class: "box" }, h("h2", {}, "What the model receives (All peers)"), h("div", { class: "in" },
+      h("p", { class: "hint" }, "Honcho's own dream prompt, the sections switched on in Honcho config → Dreams, then the dream text and (for the specialists that write the peer card) the peer card text, each under its heading. The " + (cat === "dream" ? "dream" : "peer card") + " text is highlighted. Open a peer's text to see its version." + (S.prompts && S.prompts.honcho_version ? " Prompts are from Honcho " + S.prompts.honcho_version + "; {braces} are filled in by Honcho." : "")),
+      ...dreamPromptViews(cat, null))),
+    h("details", {}, h("summary", {}, "Workspace text stored in Honcho (used only when no file applies)"), h("pre", { class: "log", style: "height:auto;max-height:50vh;background:var(--page)" }, builtin || "(none)")),
+  ];
+}
+function editorBox(row) {
+  const p = S.instr[instrKey(row)];
+  const text = p ? p.text : row.text || "";
+  const count = h("span", { class: "hint" }, Math.floor(text.length / 4) + " tokens");
+  const views = h("div", {});
+  const area = h("textarea", { rows: 22, oninput: (e) => { count.textContent = Math.floor(e.target.value.length / 4) + " tokens"; views.replaceChildren(...dreamPromptViews(row.category, row.scope === "peer" ? row.name : null, e.target.value)); } });
+  area.value = text;
+  views.replaceChildren(...dreamPromptViews(row.category, row.scope === "peer" ? row.name : null, text));
+  return h("div", { class: "box" }, h("h2", {}, "Editing: " + instrLabel(row)), h("div", { class: "in" },
+    h("p", { class: "hint" }, "File " + row.target + ". Empty means no extra text for this one."), area,
+    h("div", { class: "row", style: "margin-top:8px;align-items:center" },
+      h("button", { class: "pri", onclick: () => { stageInstr(row, area.value); S.editor = null; render(); } }, "Keep (waits for Review)"),
+      h("button", { onclick: () => { S.editor = null; render(); } }, "Close"), count),
+    h("p", { class: "hint", style: "margin:12px 0 2px" }, "What the model receives with this text (click to open; this text is highlighted):"), views));
+}
+// Text a dream for this peer uses (null peer = All peers): its own file or staged text, All peers, then Honcho's workspace text.
+function dreamTextFor(cat, peer) {
+  const staged = (scope, name) => S.instr[scope + "|" + (name || "") + "|" + cat];
+  const rows = instrRows(cat);
+  if (peer) {
+    const st = staged("peer", peer); if (st) return st.text;
+    const r = rows.find((x) => x.scope === "peer" && x.name === peer);
+    if (r && r.file === r.target) return r.text || "";
+  }
+  if (!((S.instructions && S.instructions.switched_off) || []).includes(cat)) {
+    const def = rows.find((x) => x.scope === "default");
+    const st = def && S.instr[instrKey(def)]; if (st) return st.text;
+    if (def && def.file === def.target) return def.text || "";
+  }
+  const db = (S.instructions && S.instructions.database) || {};
+  return db[cat] || (cat === "dream" ? sharedText() : "");
+}
+// A dream limit as this peer runs it: the peer's own value, the Defaults row, then Honcho's config.
+function dreamLimit(peer, field, path) {
+  for (const b of [peer && S.settings.peers[peer], S.settings.defaults]) if (b && b[field] != null) return b[field];
+  const v = hValue(path); return v == null ? hDefault(path) : v;
+}
+// The dream system prompts as the model receives them: Honcho's specialist prompt, the sections switched on, then the custom texts.
+function dreamPromptViews(cat, peer, live) {
+  const d = S.prompts && S.prompts.dream;
+  if (!d) return [h("p", { class: "hint" }, "Stock prompt file not found (config/honcho-prompts.json).")];
+  const texts = { dream: dreamTextFor("dream", peer), "peer-card": dreamTextFor("peer-card", peer) };
+  if (live != null) texts[cat] = live;
+  const on = { brief: !!(hValue("dream.brief_enabled") ?? hDefault("dream.brief_enabled")),
+    budget: String(dreamLimit(peer, "budget", "dream.budget_enabled")) === "true",
+    notes: (dreamLimit(peer, "notes", "dream.notes_mode") || "off") !== "off" };
+  const notesCap = Math.floor((dreamLimit(peer, "notes_tokens", "dream.notes_max_tokens") || 3000) / 2);
+  const windowOverride = dreamLimit(peer, "write_window", "dream.write_window_iterations");
+  const rounds = { Deduction: dreamLimit(peer, "deduction_rounds", "dream.deduction_max_tool_iterations"), Induction: dreamLimit(peer, "induction_rounds", "dream.induction_max_tool_iterations") };
+  return d.specialists.filter((s) => cat === "dream" || s.peer_card).map((s) => {
+    let extra = "";
+    if (s.extras) {
+      const limit = rounds[s.name.split(":")[0]];
+      const size = windowOverride != null ? Number(windowOverride) : limit ? Math.floor(limit * 0.15 + 0.5) : null;
+      const win = limit && size != null ? Math.min(Math.max(1, limit - 1), Math.max(1, size)) : null;
+      for (const k of ["brief", "budget", "notes"]) if (on[k]) extra += "\n\n" + d.sections[k];
+      extra = extra.replaceAll("{tool calls}", limit || "{tool calls}").replaceAll("{notes cap}", notesCap)
+        .replace("last {write rounds} calls are", win === 1 ? "last call is" : "last " + (win || "{write rounds}") + " calls are");
+    }
+    const nodes = [s.base + extra];
+    const slot = (key) => {
+      const text = (texts[key] || "").trim(); if (!text) return;
+      const [before, after] = d.custom[key === "dream" ? "dream" : "peer_card"].split(d.slot || "{CUSTOM}");
+      nodes.push(before, key === cat ? h("mark", {}, text) : text, after);
+    };
+    slot("dream"); if (s.peer_card) slot("peer-card");
+    return h("details", {}, h("summary", {}, s.name), h("pre", { class: "log prompt" }, ...nodes));
+  });
+}
+const PROMPT_JOBS = { reasoning: "Intake", summary: "Summaries", dialectic: "Questions" };
+// Workspace-wide text Honcho uses for every job that has no text of its own.
+function sharedText() { return ((S.instructions && S.instructions.database) || {}).shared || ""; }
+// The prompt as the model receives it: stock text, custom text in its slot (marked), {placeholders} filled by Honcho.
+function promptView(item, custom) {
+  const text = custom.trim();
+  if (!text) return h("pre", { class: "log prompt" }, item.without.trim());
+  const [before, after] = item.with.split((S.prompts && S.prompts.slot) || "{CUSTOM}");
+  return h("pre", { class: "log prompt" }, before.trimStart(), h("mark", {}, text), after.trimEnd());
+}
+function instrPrompts() {
+  if (S.instructions && S.instructions.workspace_error) return [h("div", { class: "err" }, "Honcho workspace not readable: " + S.instructions.workspace_error)];
+  const db = (S.instructions && S.instructions.database) || {};
+  const states = (S.instructions && S.instructions.database_state) || {};
+  const shared = sharedText().trim();
+  const jobs = (S.prompts && S.prompts.jobs) || {};
+  const intro = h("p", { class: "hint" },
+    "Honcho always sends its own prompt; it cannot be removed or edited here. What you choose below is extra text that Honcho inserts into that prompt under CUSTOM INSTRUCTIONS. ",
+    "It is stored in Honcho's workspace settings (the database), not in a file, and applies to every peer. ",
+    shared ? "A shared workspace text is set and is used by every job that has no text of its own." : "No shared workspace text is set.",
+    S.prompts && S.prompts.honcho_version ? " Prompts shown are from Honcho " + S.prompts.honcho_version + "; {braces} are filled in by Honcho at each call." : "");
+  const boxes = [["reasoning", "Turns new messages into facts about the peer."], ["summary", "Summarises sessions (short every 20 messages, long every 60)."], ["dialectic", "Answers questions about a peer."]].map(([kind, what]) => {
+    const state = states[kind];
+    const saved = state === "set" ? "mine" : state === "empty" || !shared ? "stock" : "shared";
+    const mode = S.promptMode[kind] || saved;
+    const staged = S.ws.instructions[kind];
+    const area = h("textarea", { rows: 6, placeholder: "Type the extra instructions here" });
+    area.value = staged && !staged.unset && staged.text ? staged.text : (state === "set" ? db[kind] || "" : "");
+    const custom = () => (mode === "mine" ? area.value : mode === "shared" ? shared : "");
+    const views = h("div", {});
+    const items = jobs[kind] || [];
+    const drawViews = () => views.replaceChildren(...(items.length
+      ? items.map((item) => h("details", {}, h("summary", {}, item.name), promptView(item, custom())))
+      : [h("p", { class: "hint" }, "Stock prompt file not found (config/honcho-prompts.json).")]));
+    drawViews();
+    // What this choice writes to Honcho, compared with what is stored now.
+    const stage = () => {
+      const m = S.promptMode[kind] || saved;
+      const text = area.value.trim();
+      let want;
+      if (m === "mine") want = text ? { state: "set", text } : null;
+      else if (m === "shared") want = { state: "missing" };
+      else want = { state: shared ? "empty" : state === "empty" ? "empty" : "missing" };
+      const same = !want || (want.state === (state || "missing") && (want.state !== "set" || want.text === (db[kind] || "").trim()));
+      if (same) delete S.ws.instructions[kind];
+      else S.ws.instructions[kind] = want.state === "missing" ? { unset: true } : { text: want.state === "set" ? want.text : "" };
+    };
+    area.addEventListener("input", () => { stage(); drawViews(); const c = changeCount(); const r = document.getElementById("review-btn"); r.textContent = "Review (" + c + ")"; r.className = c ? "has" : ""; document.getElementById("discard-btn").hidden = !c; });
+    const radio = (value, label) => h("label", { style: "margin-right:18px;white-space:nowrap" }, h("input", { type: "radio", name: "m-" + kind, checked: mode === value,
+      onchange: () => { S.promptMode[kind] = value; stage(); render(); } }), " " + label);
+    const options = [radio("stock", "Honcho's prompt only"), radio("mine", "Honcho's prompt + my text")];
+    if (shared) options.splice(1, 0, radio("shared", "Honcho's prompt + shared workspace text"));
+    return h("div", { class: "box" }, h("h2", {}, PROMPT_JOBS[kind]), h("div", { class: "in" }, h("p", { class: "hint" }, what),
+      h("div", { style: "margin-bottom:6px" }, options),
+      mode === "mine" ? area : null,
+      h("p", { class: "hint", style: "margin:8px 0 2px" }, "What the model receives (click to open; your text is highlighted):"), views));
+  });
+  return [intro, ...boxes];
+}
+
+// ---------- logs ----------
+function pageLogs() {
+  const st = S.status || {};
+  const rows = (S.containers && S.containers.containers) || [];
+  const act = async (action, name) => { try { await api("/api/" + action + "/" + encodeURIComponent(name), {}); note(action + " sent to " + name + "."); setTimeout(loadAll, 4000); } catch (e) { note(e.message, true); } };
+  const log = (lines) => { const pre = h("pre", { class: "log" }, (lines || []).join("\n") || "empty"); requestAnimationFrame(() => { pre.scrollTop = pre.scrollHeight; }); return pre; };
+  return [h("h1", {}, "Logs"), h("p", { class: "lead" }, "Newest last."),
+    h("div", { class: "box" }, h("h2", {}, "Dreams"), h("div", { class: "in" }, log(st.policy_log))),
+    h("div", { class: "box" }, h("h2", {}, "Scheduler"), h("div", { class: "in" }, log(st.scheduler_log))),
+    h("div", { class: "box" }, h("h2", {}, "Containers"), h("div", { class: "in tw" }, S.containers && S.containers.error ? h("div", { class: "err" }, S.containers.error) : null,
+      h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, "Name"), h("th", {}, "State"), h("th", {}, "Started"), h("th", {}))),
+        h("tbody", {}, rows.map((r) => h("tr", {}, h("td", {}, r.name), h("td", { class: r.state === "running" ? "ok" : "bad" }, r.state), h("td", {}, when(r.started_at)),
+          h("td", {}, twoStep("Restart", "Click again", () => act("restart", r.name)), " ", r.state === "running" ? twoStep("Stop", "Click again", () => act("stop", r.name)) : h("button", { onclick: () => act("start", r.name) }, "Start")))))))),
+  ];
+}
+
+// ---------- advanced ----------
+const numInput = (o, k, label) => h("label", {}, label, h("input", { type: "number", value: o[k], style: "width:130px", onchange: (e) => { o[k] = Number(e.target.value); render(); } }));
+// The scheduler's own settings (settings.json, read at the next check; no restart).
+function schedulerBox() {
+  const sch = S.settings.scheduler;
+  const types = [["omni", "Both passes (deduction, then induction)"], ["card_refresh", "Peer card refresh only"]];
+  return h("div", { class: "box" }, h("h2", {}, "Scheduler"), h("div", { class: "in" },
+    h("p", { class: "hint" }, "Used when this scheduler starts dreams (above). Unlike the switches above, these wait for Review; the scheduler reads them at its next check, no restart."),
+    h("div", { class: "row" },
+      h("label", {}, "Dream type", choice(types.map(([value, label]) => ({ value, label })), sch.dream_type || "omni", (v) => { sch.dream_type = v; render(); }, { style: "width:290px" })),
+      numInput(sch, "poll_seconds", "Check every (seconds)"), numInput(sch, "max_parallel", "Dreams at the same time"))));
+}
+// The Honcho release the config fields and defaults on these pages were read from (src/config/honcho-config.schema.json).
+function schemaLine() {
+  const x = S.honcho || {};
+  const commit = x.fork_sha ? (x.fork_version_heading || "fork") + ", commit " + x.fork_sha.slice(0, 7) : x.schema_upstream_sha ? "commit " + x.schema_upstream_sha.slice(0, 7) : "";
+  return "Config fields from Honcho " + (x.schema_honcho_version || "unknown") + (commit ? " (" + commit + ")" : "");
+}
+function pageAdvanced() {
+  const prov = S.settings.providers;
+  const num = numInput;
+  const backups = (S.history && S.history.backups) || [];
+  return [h("h1", {}, "Advanced"), h("p", { class: "lead" }, "Rarely changed. Changes wait for Review."),
+    h("div", { class: "box" }, h("h2", {}, "Honcho config schema"), h("div", { class: "in" },
+      h("p", { class: "hint" }, schemaLine()),
+      S.honcho && S.honcho.version_warning ? h("p", { class: "bad" }, S.honcho.version_warning) : null)),
+    h("div", { class: "box" }, h("h2", {}, "Model calls"), h("div", { class: "in row" }, num(prov, "concurrency", "Calls at the same time"), num(prov, "timeout_seconds", "Time limit per call (seconds)")),
+      h("div", { class: "in" }, h("p", { class: "hint" + (prov.timeout_seconds > 570 ? " bad" : "") }, "The bridge stops a call at 570 seconds at most, below Honcho's own 600-second client timeout, so a higher value runs as 570."))),
+    h("div", { class: "box" }, h("h2", {}, "Backups of the dream settings"), h("div", { class: "in tw" },
+      h("p", { class: "hint" }, "Every write keeps the previous file in the backups folder: the newest 10, plus everything from the last 7 days."),
+      h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, "Saved"), h("th", {}, "File"), h("th", {}))),
+        h("tbody", {}, backups.slice(0, 15).map((b) => h("tr", {}, h("td", {}, when(b.at)), h("td", { class: "mono hint" }, b.name),
+          h("td", {}, twoStep("Restore", "Click again", async () => { try { await api("/api/history/restore", { name: b.name, apply: true, mtime_ns: S.mtime }); await loadAll(); note("Restored " + b.name + "."); } catch (e) { note(e.message, true); } })))))))),
+  ];
+}
+
+// ---------- review and write ----------
+function fmt(v) {
+  if (v === undefined) return "(not set)";
+  if (v === null) return "inherit";
+  if (typeof v === "string") return v.length > 160 ? v.slice(0, 160) + "…" : (v || "(empty)");
+  return JSON.stringify(v);
+}
+function openReview() {
+  const groups = changeList();
+  if (!groups.length) { openModal([h("h2", {}, "No changes waiting")]); return; }
+  openModal([h("h2", {}, "Review changes"), h("p", { class: "hint" }, "Before in red, after in green. Undo removes one change."),
+    groups.map((g) => h("div", { style: "margin-bottom:12px" }, h("b", {}, g.file),
+      h("table", { class: "diff" }, h("tbody", {}, g.items.map((it) => h("tr", {},
+        h("td", { style: "font-family:var(--sans)" }, it.label), h("td", { class: "b" }, fmt(it.before)), h("td", { class: "a" }, fmt(it.after)),
+        h("td", {}, h("button", { class: "lnk", onclick: () => { it.undo(); render(); openReview(); } }, "Undo")))))))),
+    h("button", { class: "pri", id: "write-btn", onclick: writeAll }, "Write")]);
+}
+async function writeAll() {
+  const btn = document.getElementById("write-btn"); if (btn) btn.disabled = true;
+  const done = []; let restart = false;
+  try {
+    // settings.json written: its new mtime and content become the baseline, so a retry after a later failure skips it.
+    if (settingsChanges().length) { const r = await api("/api/settings", { settings: S.settings, mtime_ns: S.mtime, apply: true }); S.mtime = r.mtime_ns; S.settings0 = clone(S.settings); done.push("dream settings"); }
+    for (const it of Object.values(S.instr)) { await api("/api/instructions", { scope: it.scope, name: it.name, category: it.category, text: it.text, mtime_ns: it.mtime_ns, apply: true }); done.push(it.label); }
+    if (Object.keys(S.ws.instructions).length) { await api("/api/workspace", { enabled: {}, instructions: S.ws.instructions, apply: true }); done.push("Honcho prompts"); }
+    if (Object.keys(S.hEdits).length) { const values = {}; for (const [p, v] of Object.entries(S.hEdits)) setPath(values, p, v); await api("/api/honcho-config/write", { values, mtime_ns: S.honcho.mtime_ns, before_route_all: !!S.routeAllStaged }); done.push("Honcho config"); restart = true; }
+    closeModal(); await loadAll();
+    if (restart) S.needRestart = true;
+    note("Written: " + done.join(", ") + "." + (restart ? " Honcho's config is used after a restart (Honcho config → Restart Honcho)." : ""));
+  } catch (e) { closeModal(); note("Stopped after " + (done.join(", ") || "nothing") + ": " + e.message + ". The rest still waits for Review.", true); }
+}
+function openModal(children) {
+  document.getElementById("modal-panel").replaceChildren(h("button", { class: "lnk x", onclick: closeModal, title: "Close" }, "✕"), ...[children].flat(5));
+  document.getElementById("modal").classList.add("show");
+}
+function closeModal() { document.getElementById("modal").classList.remove("show"); }
+document.getElementById("modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
+
+// ---------- theme and navigation ----------
+function applyTheme(t) { document.documentElement.dataset.theme = t; document.getElementById("theme-btn").textContent = t === "dark" ? "Light" : "Dark"; }
+function toggleTheme() { const n = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; applyTheme(n); try { localStorage.setItem("theme", n); } catch (e) { /* storage blocked */ } }
+function fromHash() { const id = location.hash.slice(1); S.page = PAGES.some(([p]) => p === id) ? id : "overview"; S.notice = ""; S.editor = null; render(); window.scrollTo(0, 0); }
+window.addEventListener("hashchange", fromHash);
+window.addEventListener("beforeunload", (e) => { if (changeCount()) { e.preventDefault(); e.returnValue = ""; } });
+let theme = "light";
+try { theme = localStorage.getItem("theme") || "light"; } catch (e) { /* storage blocked */ }
+applyTheme(theme);
+S.page = (PAGES.find(([p]) => "#" + p === location.hash) || ["overview"])[0];
+loadAll();
+setInterval(async () => {
+  if (S.page !== "overview" || S.busy) return;
+  try { await reloadPart("status", "/api/status"); render(); } catch (e) { /* next poll retries */ }
+}, 5000);
+</script>
+</body>
+</html>

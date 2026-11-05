@@ -1,0 +1,192 @@
+{
+ "answers_vs_baseline": {
+  "B100": {
+   "distinct_questions": 17,
+   "losses": 14,
+   "per_judge": {
+    "haiku": {
+     "loss": 6,
+     "win": 11
+    },
+    "luna": {
+     "loss": 8,
+     "win": 9
+    }
+   },
+   "ties": 0,
+   "verdicts": 34,
+   "win_rate_ties_half": 0.5882352941176471,
+   "wins": 20
+  },
+  "B150": {
+   "distinct_questions": 17,
+   "losses": 12,
+   "per_judge": {
+    "haiku": {
+     "loss": 4,
+     "tie": 1,
+     "win": 12
+    },
+    "luna": {
+     "loss": 8,
+     "win": 9
+    }
+   },
+   "ties": 1,
+   "verdicts": 34,
+   "win_rate_ties_half": 0.6323529411764706,
+   "wins": 21
+  },
+  "B200": {
+   "distinct_questions": 17,
+   "losses": 14,
+   "per_judge": {
+    "haiku": {
+     "loss": 8,
+     "win": 9
+    },
+    "luna": {
+     "loss": 6,
+     "win": 11
+    }
+   },
+   "ties": 0,
+   "verdicts": 34,
+   "win_rate_ties_half": 0.5882352941176471,
+   "wins": 20
+  },
+  "B50": {
+   "distinct_questions": 17,
+   "losses": 14,
+   "per_judge": {
+    "haiku": {
+     "loss": 7,
+     "win": 10
+    },
+    "luna": {
+     "loss": 7,
+     "win": 10
+    }
+   },
+   "ties": 0,
+   "verdicts": 34,
+   "win_rate_ties_half": 0.5882352941176471,
+   "wins": 20
+  }
+ },
+ "arms": [
+  "A",
+  "B50",
+  "B100",
+  "B150",
+  "B200"
+ ],
+ "baseline": "A",
+ "design": {
+  "answer_verdicts": "34 per candidate arm (17 questions x 2 judges), 136 in all",
+  "arms": {
+   "A": "stock search settings, no rerank",
+   "B100": "rerank-3-lite pool 100",
+   "B150": "rerank-3-lite pool 150",
+   "B200": "rerank-3-lite pool 200",
+   "B50": "rerank-3-lite pool 50"
+  },
+  "judges": [
+   "gpt-6-luna",
+   "claude-haiku-5-5"
+  ],
+  "new_conclusion_samples": "up to 20 new conclusions per arm graded by both judges (A 20, B50 20, B100 20, B150 16, B200 14)",
+  "per_arm": "one dream for each of two peer pairs (peer-A/peer-A and peer-B/peer-B), then the same list of recorded question texts (up to 20, 17 distinct questions answered by every arm) on a separate copy of one database",
+  "rerank_arms_index_settings": "ef_search 200, iterative scan relaxed_order",
+  "retrieval_pairs_judged_per_judge": {
+   "A": 641,
+   "B100": 849,
+   "B150": 840,
+   "B200": 910,
+   "B50": 782
+  },
+  "spend_usd_ledger": 2.11,
+  "status": "exploratory pilot, descriptive only; no significance tests"
+ },
+ "dream_effort": {
+  "A": {
+   "create_calls": 8,
+   "input_tokens": 2412048,
+   "search_calls": 78
+  },
+  "B100": {
+   "create_calls": 12,
+   "input_tokens": 3182989,
+   "search_calls": 77
+  },
+  "B150": {
+   "create_calls": 5,
+   "input_tokens": 2057467,
+   "search_calls": 61
+  },
+  "B200": {
+   "create_calls": 5,
+   "input_tokens": 3324021,
+   "search_calls": 60
+  },
+  "B50": {
+   "create_calls": 11,
+   "input_tokens": 3411451,
+   "search_calls": 103
+  }
+ },
+ "new_conclusions": {
+  "A": {
+   "mean_grade": 1.575,
+   "n": 20
+  },
+  "B100": {
+   "mean_grade": 1.325,
+   "n": 20
+  },
+  "B150": {
+   "mean_grade": 1.25,
+   "n": 16
+  },
+  "B200": {
+   "mean_grade": 1.25,
+   "n": 14
+  },
+  "B50": {
+   "mean_grade": 1.425,
+   "n": 20
+  }
+ },
+ "retrieval": {
+  "A": {
+   "mean_grade": 1.2995319812792512,
+   "pairs": 641,
+   "share_2_by_all": 0.2620904836193448,
+   "share_at_least_1_by_all": 0.8627145085803433
+  },
+  "B100": {
+   "mean_grade": 1.502944640753828,
+   "pairs": 849,
+   "share_2_by_all": 0.4652532391048292,
+   "share_at_least_1_by_all": 0.8975265017667845
+  },
+  "B150": {
+   "mean_grade": 1.5482142857142858,
+   "pairs": 840,
+   "share_2_by_all": 0.5154761904761904,
+   "share_at_least_1_by_all": 0.9047619047619048
+  },
+  "B200": {
+   "mean_grade": 1.4802197802197803,
+   "pairs": 910,
+   "share_2_by_all": 0.4340659340659341,
+   "share_at_least_1_by_all": 0.8813186813186813
+  },
+  "B50": {
+   "mean_grade": 1.3734015345268542,
+   "pairs": 782,
+   "share_2_by_all": 0.34654731457800514,
+   "share_at_least_1_by_all": 0.8657289002557544
+  }
+ }
+}

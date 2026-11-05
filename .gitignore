@@ -1,0 +1,57 @@
+# Local, private material: real configs, exports, notes, keys. Ignored by default.
+.private/
+
+# Live runtime folders beside the repository root (CONFIG_DIR, DATA_DIR, LOGS_DIR, TELEMETRY_DIR,
+# BACKUP_DIR, SECRETS_DIR in deploy/.env). Shipped empty with a README; what the stack writes there stays
+# local. Anchored with a leading slash: src/config and src/telemetry are code.
+/config/*
+/data/*
+/logs/*
+/telemetry/*
+# Re-include the folder first: a global ignore may exclude every backups/ folder.
+!/backups/
+/backups/*
+/cli-secrets/*
+!/config/README.md
+!/data/README.md
+!/logs/README.md
+!/telemetry/README.md
+!/backups/README.md
+!/cli-secrets/README.md
+!/cli-secrets/codex/
+!/cli-secrets/claude/
+/cli-secrets/codex/*
+/cli-secrets/claude/*
+!/cli-secrets/codex/.gitkeep
+!/cli-secrets/claude/.gitkeep
+
+# AI assistant and editor tool folders
+.claude/
+.cursor/
+.codex/
+.gemini/
+.windsurf/
+.continue/
+.aider*
+
+# Secrets and runtime output
+.env
+.env.*
+!.env.example
+!deploy/.env.example
+*.log
+*.bak-*
+settings.json
+
+# The backup component is source, not a backup folder (a global ignore may exclude backup/).
+!src/backup/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+build/
+dist/
+*.egg-info/
+.ruff_cache/

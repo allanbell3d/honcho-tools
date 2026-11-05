@@ -1,0 +1,2084 @@
+{
+  "honcho_version": "3.5.0",
+  "upstream_tag": "v3.5.0",
+  "upstream_sha": "0cd37ddbd88f51cdac7c660d7372f4b2fd40a4b3",
+  "fork_sha": null,
+  "fork_version_heading": null,
+  "sections": {
+    "llm": {
+      "class": "LLMSettings",
+      "env_prefix": "LLM_",
+      "description": "",
+      "fields": {
+        "anthropic_base_url": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "ANTHROPIC_BASE_URL",
+          "description": "Base URLs for LLM providers (for OpenAI-compatible proxies like OpenRouter, vLLM, Together, Anyscale, self-hosted, etc.)"
+        },
+        "openai_base_url": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "OPENAI_BASE_URL"
+        },
+        "gemini_base_url": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "GEMINI_BASE_URL"
+        },
+        "default_max_tokens": {
+          "type": "integer",
+          "nullable": false,
+          "default": 2500,
+          "env_name": "DEFAULT_MAX_TOKENS",
+          "constraints": {
+            "gt": 0,
+            "le": 100000
+          },
+          "description": "General LLM settings"
+        },
+        "max_tool_output_chars": {
+          "type": "integer",
+          "nullable": false,
+          "default": 10000,
+          "env_name": "MAX_TOOL_OUTPUT_CHARS",
+          "constraints": {
+            "gt": 0,
+            "le": 100000
+          },
+          "description": "Maximum characters for tool output to prevent token explosion. Set to 10,000 chars (~2,500 tokens at 4 chars/token) to stay well under typical context limits while providing substantial tool output."
+        },
+        "max_message_content_chars": {
+          "type": "integer",
+          "nullable": false,
+          "default": 2000,
+          "env_name": "MAX_MESSAGE_CONTENT_CHARS",
+          "constraints": {
+            "gt": 0,
+            "le": 10000
+          },
+          "description": "Maximum characters for individual message content in tool results. Keeps each message preview concise while preserving key context."
+        }
+      }
+    },
+    "embedding": {
+      "class": "EmbeddingSettings",
+      "env_prefix": "EMBEDDING_",
+      "description": "",
+      "fields": {
+        "model_config": {
+          "type": "object",
+          "nullable": false,
+          "default": {
+            "model": "text-embedding-3-small",
+            "transport": "openai",
+            "overrides": {
+              "api_key_env": null,
+              "base_url": null,
+              "provider_params": {}
+            },
+            "dimensions_mode": "auto",
+            "encoding_format_mode": "auto",
+            "max_batch_size": null,
+            "timeout": null
+          },
+          "env_name": "MODEL_CONFIG",
+          "model": "ConfiguredEmbeddingModelSettings"
+        },
+        "vector_dimensions": {
+          "type": "integer",
+          "nullable": false,
+          "default": 1536,
+          "env_name": "VECTOR_DIMENSIONS",
+          "constraints": {
+            "gt": 0
+          }
+        },
+        "max_input_tokens": {
+          "type": "integer",
+          "nullable": false,
+          "default": 8192,
+          "env_name": "MAX_INPUT_TOKENS",
+          "constraints": {
+            "gt": 0
+          }
+        },
+        "max_tokens_per_request": {
+          "type": "integer",
+          "nullable": false,
+          "default": 300000,
+          "env_name": "MAX_TOKENS_PER_REQUEST",
+          "constraints": {
+            "gt": 0
+          }
+        },
+        "max_concurrent_embeddings": {
+          "type": "integer",
+          "nullable": false,
+          "default": 10,
+          "env_name": "MAX_CONCURRENT_EMBEDDINGS",
+          "constraints": {
+            "gt": 0,
+            "le": 100
+          },
+          "description": "Caps concurrent message-embedding fan-out on the API request path (the immediate-embed background task). The reconciler is unaffected."
+        },
+        "max_pending_embed_tasks": {
+          "type": "integer",
+          "nullable": false,
+          "default": 50,
+          "env_name": "MAX_PENDING_EMBED_TASKS",
+          "constraints": {
+            "ge": 0
+          },
+          "description": "Caps in-flight immediate-embed background tasks per API process. When saturated, message creation skips the fast path entirely and the reconciler embeds on its next cycle. 0 disables the fast path."
+        }
+      }
+    },
+    "deriver": {
+      "class": "DeriverSettings",
+      "env_prefix": "DERIVER_",
+      "description": "",
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": true,
+          "env_name": "ENABLED"
+        },
+        "workers": {
+          "type": "integer",
+          "nullable": false,
+          "default": 1,
+          "env_name": "WORKERS",
+          "constraints": {
+            "gt": 0,
+            "le": 100
+          }
+        },
+        "polling_sleep_interval_seconds": {
+          "type": "number",
+          "nullable": false,
+          "default": 1.0,
+          "env_name": "POLLING_SLEEP_INTERVAL_SECONDS",
+          "constraints": {
+            "gt": 0.0,
+            "le": 60.0
+          }
+        },
+        "polling_backoff_enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": true,
+          "env_name": "POLLING_BACKOFF_ENABLED",
+          "description": "Adaptive polling: when the queue is idle (or the loop is erroring) the sleep interval grows from POLLING_SLEEP_INTERVAL_SECONDS toward POLLING_SLEEP_MAX_INTERVAL_SECONDS by POLLING_BACKOFF_MULTIPLIER each cycle, then snaps back to the base interval as soon as work is found. Reduces steady-state query load against the (shared) DB/pooler."
+        },
+        "polling_sleep_max_interval_seconds": {
+          "type": "number",
+          "nullable": false,
+          "default": 30.0,
+          "env_name": "POLLING_SLEEP_MAX_INTERVAL_SECONDS",
+          "constraints": {
+            "gt": 0.0,
+            "le": 300.0
+          }
+        },
+        "polling_backoff_multiplier": {
+          "type": "number",
+          "nullable": false,
+          "default": 2.0,
+          "env_name": "POLLING_BACKOFF_MULTIPLIER",
+          "constraints": {
+            "ge": 1.0,
+            "le": 10.0
+          }
+        },
+        "polling_startup_jitter_seconds": {
+          "type": "number",
+          "nullable": false,
+          "default": 30.0,
+          "env_name": "POLLING_STARTUP_JITTER_SECONDS",
+          "constraints": {
+            "ge": 0.0,
+            "le": 300.0
+          },
+          "description": "Sleep a uniform-random delay in [0, POLLING_STARTUP_JITTER_SECONDS] before the first poll so instances that start together don't poll in lockstep. Set to 0.0 to disable."
+        },
+        "polling_jitter_ratio": {
+          "type": "number",
+          "nullable": false,
+          "default": 0.5,
+          "env_name": "POLLING_JITTER_RATIO",
+          "constraints": {
+            "ge": 0.0,
+            "le": 1.0
+          },
+          "description": "Multiply every poll sleep by a random factor in [1 - ratio, 1 + ratio] (0.5 -> [0.5x, 1.5x]) so poll loops don't re-converge over time. The backoff schedule is unchanged; only the returned sleep is scattered. Set to 0.0 to disable."
+        },
+        "stale_session_timeout_minutes": {
+          "type": "integer",
+          "nullable": false,
+          "default": 5,
+          "env_name": "STALE_SESSION_TIMEOUT_MINUTES",
+          "constraints": {
+            "gt": 0,
+            "le": 1440
+          }
+        },
+        "stale_work_unit_cleanup_interval_seconds": {
+          "type": "number",
+          "nullable": false,
+          "default": 60.0,
+          "env_name": "STALE_WORK_UNIT_CLEANUP_INTERVAL_SECONDS",
+          "constraints": {
+            "ge": 0.0,
+            "le": 3600.0
+          },
+          "description": "Minimum (jittered) spacing between stale-work-unit cleanup runs"
+        },
+        "queue_error_retention_seconds": {
+          "type": "integer",
+          "nullable": false,
+          "default": 2592000,
+          "env_name": "QUEUE_ERROR_RETENTION_SECONDS",
+          "constraints": {
+            "gt": 0
+          },
+          "description": "30 days default"
+        },
+        "model_config": {
+          "type": "object",
+          "nullable": false,
+          "default": {
+            "model": "gpt-5.4-mini",
+            "transport": "openai",
+            "fallback": null,
+            "temperature": null,
+            "top_p": null,
+            "top_k": null,
+            "frequency_penalty": null,
+            "presence_penalty": null,
+            "seed": null,
+            "thinking_effort": null,
+            "thinking_budget_tokens": null,
+            "structured_output_mode": null,
+            "max_output_tokens": null,
+            "stop_sequences": null,
+            "cache_policy": null,
+            "overrides": {
+              "api_key_env": null,
+              "base_url": null,
+              "provider_params": {}
+            }
+          },
+          "env_name": "MODEL_CONFIG",
+          "model": "ConfiguredModelSettings"
+        },
+        "deduplicate": {
+          "type": "boolean",
+          "nullable": false,
+          "default": true,
+          "env_name": "DEDUPLICATE",
+          "description": "Whether to deduplicate documents when creating them"
+        },
+        "log_observations": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "LOG_OBSERVATIONS"
+        },
+        "max_input_tokens": {
+          "type": "integer",
+          "nullable": false,
+          "default": 25000,
+          "env_name": "MAX_INPUT_TOKENS",
+          "constraints": {
+            "gt": 0,
+            "le": 25000
+          }
+        },
+        "max_custom_instructions_tokens": {
+          "type": "integer",
+          "nullable": false,
+          "default": 2000,
+          "env_name": "MAX_CUSTOM_INSTRUCTIONS_TOKENS",
+          "constraints": {
+            "ge": 0,
+            "le": 2000
+          }
+        },
+        "working_representation_max_observations": {
+          "type": "integer",
+          "nullable": false,
+          "default": 100,
+          "env_name": "WORKING_REPRESENTATION_MAX_OBSERVATIONS",
+          "constraints": {
+            "gt": 0,
+            "le": 1000
+          },
+          "description": "Maximum number of observations to return in working representation This is applied to both explicit and deductive observations"
+        },
+        "representation_batch_work_unit_target_tokens": {
+          "type": "integer",
+          "nullable": false,
+          "default": 512,
+          "env_name": "REPRESENTATION_BATCH_WORK_UNIT_TARGET_TOKENS",
+          "constraints": {
+            "ge": 0,
+            "le": 16384
+          },
+          "description": "Minimum tokens a representation work unit must accumulate (summed over its own unprocessed messages) before it becomes claimable. Bypassed by FLUSH_ENABLED and by REPRESENTATION_BATCH_MAX_AGE_SECONDS age-flushing. 0 disables the accumulation gate entirely (equivalent to FLUSH_ENABLED for claiming): work units are claimable as soon as anything is pending."
+        },
+        "representation_batch_target_input_tokens": {
+          "type": "integer",
+          "nullable": false,
+          "default": 1024,
+          "env_name": "REPRESENTATION_BATCH_TARGET_INPUT_TOKENS",
+          "constraints": {
+            "ge": 128,
+            "le": 16384
+          },
+          "description": "Cumulative-token cap on the conversation window (queued messages plus interleaved context) fed to a single deriver LLM call when draining a claimed work unit. The first unprocessed message is always included, even if it alone exceeds the cap."
+        },
+        "representation_batch_max_age_seconds": {
+          "type": "integer",
+          "nullable": false,
+          "default": 1800,
+          "env_name": "REPRESENTATION_BATCH_MAX_AGE_SECONDS",
+          "constraints": {
+            "ge": 0
+          },
+          "description": "Sub-threshold work units become eligible once their oldest unprocessed item exceeds this age. 0 disables age-based flushing."
+        },
+        "flush_enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "FLUSH_ENABLED",
+          "description": "When enabled, bypasses the batch token threshold and processes work immediately"
+        },
+        "backlog_metrics_poll_interval_seconds": {
+          "type": "integer",
+          "nullable": false,
+          "default": 30,
+          "env_name": "BACKLOG_METRICS_POLL_INTERVAL_SECONDS",
+          "constraints": {
+            "ge": 1
+          }
+        },
+        "scheduler": {
+          "type": "string",
+          "nullable": false,
+          "default": "deriver",
+          "env_name": "SCHEDULER",
+          "enum": [
+            "api",
+            "deriver"
+          ]
+        }
+      }
+    },
+    "peer_card": {
+      "class": "PeerCardSettings",
+      "env_prefix": "PEER_CARD_",
+      "description": "",
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": true,
+          "env_name": "ENABLED"
+        }
+      }
+    },
+    "dialectic": {
+      "class": "DialecticSettings",
+      "env_prefix": "DIALECTIC_",
+      "description": "",
+      "fields": {
+        "levels": {
+          "type": "map",
+          "nullable": false,
+          "default": {
+            "minimal": {
+              "model_config": {
+                "model": "gpt-5.4-mini",
+                "transport": "openai",
+                "fallback": null,
+                "temperature": null,
+                "top_p": null,
+                "top_k": null,
+                "frequency_penalty": null,
+                "presence_penalty": null,
+                "seed": null,
+                "thinking_effort": null,
+                "thinking_budget_tokens": null,
+                "structured_output_mode": null,
+                "max_output_tokens": null,
+                "stop_sequences": null,
+                "cache_policy": null,
+                "overrides": {
+                  "api_key_env": null,
+                  "base_url": null,
+                  "provider_params": {}
+                }
+              },
+              "max_tool_iterations": 1,
+              "max_output_tokens": 250,
+              "tool_choice": "auto"
+            },
+            "low": {
+              "model_config": {
+                "model": "gpt-5.4-mini",
+                "transport": "openai",
+                "fallback": null,
+                "temperature": null,
+                "top_p": null,
+                "top_k": null,
+                "frequency_penalty": null,
+                "presence_penalty": null,
+                "seed": null,
+                "thinking_effort": null,
+                "thinking_budget_tokens": null,
+                "structured_output_mode": null,
+                "max_output_tokens": null,
+                "stop_sequences": null,
+                "cache_policy": null,
+                "overrides": {
+                  "api_key_env": null,
+                  "base_url": null,
+                  "provider_params": {}
+                }
+              },
+              "max_tool_iterations": 5,
+              "max_output_tokens": null,
+              "tool_choice": "auto"
+            },
+            "medium": {
+              "model_config": {
+                "model": "gpt-5.4-mini",
+                "transport": "openai",
+                "fallback": null,
+                "temperature": null,
+                "top_p": null,
+                "top_k": null,
+                "frequency_penalty": null,
+                "presence_penalty": null,
+                "seed": null,
+                "thinking_effort": null,
+                "thinking_budget_tokens": null,
+                "structured_output_mode": null,
+                "max_output_tokens": null,
+                "stop_sequences": null,
+                "cache_policy": null,
+                "overrides": {
+                  "api_key_env": null,
+                  "base_url": null,
+                  "provider_params": {}
+                }
+              },
+              "max_tool_iterations": 2,
+              "max_output_tokens": null,
+              "tool_choice": null
+            },
+            "high": {
+              "model_config": {
+                "model": "gpt-5.4-mini",
+                "transport": "openai",
+                "fallback": null,
+                "temperature": null,
+                "top_p": null,
+                "top_k": null,
+                "frequency_penalty": null,
+                "presence_penalty": null,
+                "seed": null,
+                "thinking_effort": null,
+                "thinking_budget_tokens": null,
+                "structured_output_mode": null,
+                "max_output_tokens": null,
+                "stop_sequences": null,
+                "cache_policy": null,
+                "overrides": {
+                  "api_key_env": null,
+                  "base_url": null,
+                  "provider_params": {}
+                }
+              },
+              "max_tool_iterations": 4,
+              "max_output_tokens": null,
+              "tool_choice": null
+            },
+            "max": {
+              "model_config": {
+                "model": "gpt-5.4-mini",
+                "transport": "openai",
+                "fallback": null,
+                "temperature": null,
+                "top_p": null,
+                "top_k": null,
+                "frequency_penalty": null,
+                "presence_penalty": null,
+                "seed": null,
+                "thinking_effort": null,
+                "thinking_budget_tokens": null,
+                "structured_output_mode": null,
+                "max_output_tokens": null,
+                "stop_sequences": null,
+                "cache_policy": null,
+                "overrides": {
+                  "api_key_env": null,
+                  "base_url": null,
+                  "provider_params": {}
+                }
+              },
+              "max_tool_iterations": 10,
+              "max_output_tokens": null,
+              "tool_choice": null
+            }
+          },
+          "env_name": "LEVELS",
+          "model": "DialecticLevelSettings",
+          "key_enum": [
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "max"
+          ]
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "nullable": false,
+          "default": 8192,
+          "env_name": "MAX_OUTPUT_TOKENS",
+          "constraints": {
+            "gt": 0,
+            "le": 100000
+          }
+        },
+        "max_input_tokens": {
+          "type": "integer",
+          "nullable": false,
+          "default": 100000,
+          "env_name": "MAX_INPUT_TOKENS",
+          "constraints": {
+            "gt": 0,
+            "le": 200000
+          }
+        },
+        "max_query_length": {
+          "type": "integer",
+          "nullable": false,
+          "default": 10000,
+          "env_name": "MAX_QUERY_LENGTH",
+          "constraints": {
+            "gt": 0,
+            "le": 200000
+          },
+          "description": "Longest peer chat query accepted, in characters. Raise it for clients that quote recent conversation turns in the query. Workspace chat keeps its own fixed limit."
+        },
+        "workspace_extra_tool_iterations": {
+          "type": "integer",
+          "nullable": false,
+          "default": 3,
+          "env_name": "WORKSPACE_EXTRA_TOOL_ITERATIONS",
+          "constraints": {
+            "ge": 0,
+            "le": 20
+          },
+          "description": "Extra tool rounds workspace chat gets on top of its level's limit. A workspace query fans out over peers where a pair query reads one representation, so it needs room to route and then recall. Not applied at \"minimal\", whose single round is the point of the level."
+        },
+        "budget_enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "BUDGET_ENABLED",
+          "description": "Show a tool-call budget line after each round, at levels allowing three or more tool iterations."
+        },
+        "brief_enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "BRIEF_ENABLED",
+          "description": "Add the memory-layout section to the system prompt and, for unrestricted pair queries, conclusion counts and the dreamer's `map` notes (when DREAM_NOTES_MODE=on) to the first message."
+        },
+        "session_history_max_tokens": {
+          "type": "integer",
+          "nullable": false,
+          "default": 4096,
+          "env_name": "SESSION_HISTORY_MAX_TOKENS",
+          "constraints": {
+            "ge": 0,
+            "le": 16384
+          },
+          "description": "Session history injection: max tokens of recent messages to include when session_id is specified. Set to 0 to disable automatic session history injection."
+        }
+      }
+    },
+    "summary": {
+      "class": "SummarySettings",
+      "env_prefix": "SUMMARY_",
+      "description": "",
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": true,
+          "env_name": "ENABLED"
+        },
+        "messages_per_short_summary": {
+          "type": "integer",
+          "nullable": false,
+          "default": 20,
+          "env_name": "MESSAGES_PER_SHORT_SUMMARY",
+          "constraints": {
+            "gt": 0,
+            "le": 100
+          }
+        },
+        "messages_per_long_summary": {
+          "type": "integer",
+          "nullable": false,
+          "default": 60,
+          "env_name": "MESSAGES_PER_LONG_SUMMARY",
+          "constraints": {
+            "gt": 0,
+            "le": 500
+          }
+        },
+        "model_config": {
+          "type": "object",
+          "nullable": false,
+          "default": {
+            "model": "gpt-5.4-mini",
+            "transport": "openai",
+            "fallback": null,
+            "temperature": null,
+            "top_p": null,
+            "top_k": null,
+            "frequency_penalty": null,
+            "presence_penalty": null,
+            "seed": null,
+            "thinking_effort": null,
+            "thinking_budget_tokens": null,
+            "structured_output_mode": null,
+            "max_output_tokens": null,
+            "stop_sequences": null,
+            "cache_policy": null,
+            "overrides": {
+              "api_key_env": null,
+              "base_url": null,
+              "provider_params": {}
+            }
+          },
+          "env_name": "MODEL_CONFIG",
+          "model": "ConfiguredModelSettings"
+        },
+        "max_tokens_short": {
+          "type": "integer",
+          "nullable": false,
+          "default": 1500,
+          "env_name": "MAX_TOKENS_SHORT",
+          "constraints": {
+            "gt": 0,
+            "le": 10000
+          },
+          "description": "Per-call output caps. The prompt asks for a fraction of these as a soft target (SUMMARY_TARGET_RATIO in src/utils/summarizer.py), leaving the rest as headroom so a summary can finish instead of truncating."
+        },
+        "max_tokens_long": {
+          "type": "integer",
+          "nullable": false,
+          "default": 6000,
+          "env_name": "MAX_TOKENS_LONG",
+          "constraints": {
+            "gt": 0,
+            "le": 20000
+          }
+        },
+        "output_headroom": {
+          "type": "number",
+          "nullable": false,
+          "default": 1.0,
+          "env_name": "OUTPUT_HEADROOM",
+          "constraints": {
+            "ge": 1.0
+          }
+        },
+        "max_input_tokens": {
+          "type": "integer",
+          "nullable": false,
+          "default": 100000,
+          "env_name": "MAX_INPUT_TOKENS",
+          "constraints": {
+            "gt": 0,
+            "le": 200000
+          },
+          "description": "Input budget for one summary call: prompt, previous summary and messages. The message window is chosen by count, so long messages can outgrow the model's context window; the oldest messages in the window are dropped to fit. A fixed budget, like DIALECTIC_MAX_INPUT_TOKENS, kept well under the context windows of the configured model and its fallback."
+        }
+      }
+    },
+    "webhook": {
+      "class": "WebhookSettings",
+      "env_prefix": "WEBHOOK_",
+      "description": "",
+      "fields": {
+        "max_workspace_limit": {
+          "type": "integer",
+          "nullable": false,
+          "default": 10,
+          "env_name": "MAX_WORKSPACE_LIMIT"
+        }
+      }
+    },
+    "metrics": {
+      "class": "MetricsSettings",
+      "env_prefix": "METRICS_",
+      "description": "",
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "ENABLED"
+        },
+        "namespace": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "NAMESPACE"
+        }
+      }
+    },
+    "telemetry": {
+      "class": "TelemetrySettings",
+      "env_prefix": "TELEMETRY_",
+      "description": "CloudEvents telemetry settings for analytics. These settings configure the CloudEvents emitter for pushing structured events to an analytics backend.",
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "ENABLED",
+          "description": "Master toggle for CloudEvents emission"
+        },
+        "endpoint": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "ENDPOINT",
+          "description": "CloudEvents HTTP endpoint (e.g., \"https://telemetry.honcho.dev/v1/events\")"
+        },
+        "headers": {
+          "type": "map",
+          "nullable": true,
+          "default": null,
+          "env_name": "HEADERS",
+          "description": "Optional headers for authentication",
+          "value_type": "string"
+        },
+        "batch_size": {
+          "type": "integer",
+          "nullable": false,
+          "default": 100,
+          "env_name": "BATCH_SIZE",
+          "constraints": {
+            "gt": 0,
+            "le": 1000
+          },
+          "description": "Batching configuration"
+        },
+        "flush_interval_seconds": {
+          "type": "number",
+          "nullable": false,
+          "default": 1.0,
+          "env_name": "FLUSH_INTERVAL_SECONDS",
+          "constraints": {
+            "gt": 0.0,
+            "le": 60.0
+          }
+        },
+        "flush_threshold": {
+          "type": "integer",
+          "nullable": false,
+          "default": 50,
+          "env_name": "FLUSH_THRESHOLD",
+          "constraints": {
+            "gt": 0,
+            "le": 1000
+          }
+        },
+        "max_retries": {
+          "type": "integer",
+          "nullable": false,
+          "default": 3,
+          "env_name": "MAX_RETRIES",
+          "constraints": {
+            "gt": 0,
+            "le": 10
+          },
+          "description": "Retry configuration"
+        },
+        "max_buffer_size": {
+          "type": "integer",
+          "nullable": false,
+          "default": 10000,
+          "env_name": "MAX_BUFFER_SIZE",
+          "constraints": {
+            "gt": 0,
+            "le": 100000
+          },
+          "description": "Buffer configuration"
+        },
+        "namespace": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "NAMESPACE",
+          "description": "Namespace for instance identification (propagated from top-level NAMESPACE if not set)"
+        },
+        "high_volume_sample_rate": {
+          "type": "number",
+          "nullable": false,
+          "default": 1.0,
+          "env_name": "HIGH_VOLUME_SAMPLE_RATE",
+          "constraints": {
+            "ge": 0.0,
+            "le": 1.0
+          },
+          "description": "Sample rate for high-volume events: llm.call.completed, embedding.call.completed, agent.iteration, agent.tool.call.completed. Deterministic on run_id so traces remain coherent end-to-end. Aggregate envelopes (RepresentationCompleted, DialecticCompleted, DreamRun, etc.) are NEVER sampled — they're calibration ground truth. Design trade-off: at rate < 1.0, aggregate events still emit but their high-volume children get dropped. Downstream `JOIN ... ON run_id` queries will see parents without complete children — this is intentional (the aggregates carry totals; detail events are best-effort), but consumers MUST NOT rebuild per-call analytics from the sampled children alone or they'll undercount. If you tune this below 1.0, audit dashboards/queries that join high-volume events to aggregate envelopes first."
+        },
+        "trace_payloads_enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "TRACE_PAYLOADS_ENABLED",
+          "description": "--- Full-fidelity payload tracing (llm.call.traced / trace.content) --- Master toggle for replay-grade content capture. Default-off."
+        },
+        "trace_max_bytes": {
+          "type": "integer",
+          "nullable": false,
+          "default": 262144,
+          "env_name": "TRACE_MAX_BYTES",
+          "constraints": {
+            "gt": 0
+          },
+          "description": "Per-message cap (bytes) for captured content; oversized string content is clipped (with a marker) and the call is flagged was_truncated."
+        },
+        "trace_purposes": {
+          "type": "array",
+          "nullable": false,
+          "default": [],
+          "env_name": "TRACE_PURPOSES",
+          "description": "Allowlist of CallPurpose values to capture; empty = all. Typed as str to keep the enum out of config (validated against CallPurpose at the producer, same pattern as LLMTelemetryContext.call_purpose).",
+          "items": "string"
+        }
+      }
+    },
+    "cache": {
+      "class": "CacheSettings",
+      "env_prefix": "CACHE_",
+      "description": "",
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "ENABLED"
+        },
+        "url": {
+          "type": "string",
+          "nullable": false,
+          "default": "redis://localhost:6379/0?suppress=true",
+          "env_name": "URL"
+        },
+        "cluster": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "CLUSTER",
+          "description": "URL points at a Redis Cluster (OSS cluster protocol, e.g. GCP Memorystore for Redis Cluster). A standalone client cannot follow the MOVED redirects such deployments return for keys hashed to another shard."
+        },
+        "connect_timeout_seconds": {
+          "type": "number",
+          "nullable": false,
+          "default": 5.0,
+          "env_name": "CONNECT_TIMEOUT_SECONDS",
+          "constraints": {
+            "gt": 0,
+            "le": 60
+          }
+        },
+        "connect_retries": {
+          "type": "integer",
+          "nullable": false,
+          "default": 3,
+          "env_name": "CONNECT_RETRIES",
+          "constraints": {
+            "ge": 0,
+            "le": 10
+          }
+        },
+        "namespace": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "NAMESPACE"
+        },
+        "default_ttl_seconds": {
+          "type": "integer",
+          "nullable": false,
+          "default": 300,
+          "env_name": "DEFAULT_TTL_SECONDS",
+          "constraints": {
+            "ge": 1,
+            "le": 86400
+          },
+          "description": "how long to keep items in cache"
+        },
+        "default_lock_ttl_seconds": {
+          "type": "integer",
+          "nullable": false,
+          "default": 5,
+          "env_name": "DEFAULT_LOCK_TTL_SECONDS",
+          "constraints": {
+            "ge": 1,
+            "le": 86400
+          },
+          "description": "how long to hold a lock on a resource when fetching DB after cache miss"
+        },
+        "pagination_offset_shim": {
+          "type": "boolean",
+          "nullable": false,
+          "default": true,
+          "env_name": "PAGINATION_OFFSET_SHIM",
+          "description": "Serve offset-paginated list requests (`?page=N`) with a keyset seek from a cached position where possible; see src/utils/pagination.py."
+        },
+        "pagination_position_ttl_seconds": {
+          "type": "integer",
+          "nullable": false,
+          "default": 600,
+          "env_name": "PAGINATION_POSITION_TTL_SECONDS",
+          "constraints": {
+            "ge": 1,
+            "le": 86400
+          },
+          "description": "long enough to span a pause in a client's walk, short enough that abandoned walks expire"
+        },
+        "pagination_count_ttl_seconds": {
+          "type": "integer",
+          "nullable": false,
+          "default": 60,
+          "env_name": "PAGINATION_COUNT_TTL_SECONDS",
+          "constraints": {
+            "ge": 1,
+            "le": 3600
+          },
+          "description": "How stale `total` may be on pages after the first."
+        },
+        "lock_wait_check_interval_seconds": {
+          "type": "number",
+          "nullable": false,
+          "default": 0.1,
+          "env_name": "LOCK_WAIT_CHECK_INTERVAL_SECONDS",
+          "constraints": {
+            "gt": 0,
+            "le": 5
+          },
+          "description": "Polling interval while waiting for another worker's fetch lock. cashews defaults to 0, which busy-spins the event loop for the whole wait."
+        }
+      }
+    },
+    "dream": {
+      "class": "DreamSettings",
+      "env_prefix": "DREAM_",
+      "description": "",
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": true,
+          "env_name": "ENABLED"
+        },
+        "document_threshold": {
+          "type": "integer",
+          "nullable": false,
+          "default": 50,
+          "env_name": "DOCUMENT_THRESHOLD",
+          "constraints": {
+            "gt": 0,
+            "le": 1000
+          }
+        },
+        "idle_timeout_minutes": {
+          "type": "integer",
+          "nullable": false,
+          "default": 60,
+          "env_name": "IDLE_TIMEOUT_MINUTES",
+          "constraints": {
+            "gt": 0,
+            "le": 1440
+          }
+        },
+        "min_hours_between_dreams": {
+          "type": "integer",
+          "nullable": false,
+          "default": 8,
+          "env_name": "MIN_HOURS_BETWEEN_DREAMS",
+          "constraints": {
+            "gt": 0,
+            "le": 72
+          }
+        },
+        "due_poll_interval_seconds": {
+          "type": "integer",
+          "nullable": false,
+          "default": 300,
+          "env_name": "DUE_POLL_INTERVAL_SECONDS",
+          "constraints": {
+            "ge": 1
+          }
+        },
+        "max_enqueued_per_poll": {
+          "type": "integer",
+          "nullable": false,
+          "default": 100,
+          "env_name": "MAX_ENQUEUED_PER_POLL",
+          "constraints": {
+            "gt": 0,
+            "le": 10000
+          }
+        },
+        "enabled_types": {
+          "type": "array",
+          "nullable": false,
+          "default": [
+            "omni"
+          ],
+          "env_name": "ENABLED_TYPES",
+          "items": "string"
+        },
+        "max_tool_iterations": {
+          "type": "integer",
+          "nullable": false,
+          "default": 20,
+          "env_name": "MAX_TOOL_ITERATIONS",
+          "constraints": {
+            "gt": 0,
+            "le": 50
+          },
+          "description": "Card-refresh dreams only; capped further by the specialist's own ceiling. Deduction and induction use the per-specialist limits below."
+        },
+        "deduction_max_tool_iterations": {
+          "type": "integer",
+          "nullable": false,
+          "default": 12,
+          "env_name": "DEDUCTION_MAX_TOOL_ITERATIONS",
+          "constraints": {
+            "ge": 1,
+            "le": 50
+          }
+        },
+        "induction_max_tool_iterations": {
+          "type": "integer",
+          "nullable": false,
+          "default": 10,
+          "env_name": "INDUCTION_MAX_TOOL_ITERATIONS",
+          "constraints": {
+            "ge": 1,
+            "le": 50
+          }
+        },
+        "brief_enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "BRIEF_ENABLED",
+          "description": "Deduction and induction start with a description of how memory is organized and conclusion counts by level."
+        },
+        "brief_max_new_conclusions": {
+          "type": "integer",
+          "nullable": false,
+          "default": 50,
+          "env_name": "BRIEF_MAX_NEW_CONCLUSIONS",
+          "constraints": {
+            "ge": 1,
+            "le": 500
+          },
+          "description": "Cap on the since-last-dream work list in the brief. A larger backlog is worked through over consecutive dreams."
+        },
+        "brief_max_new_conclusion_tokens": {
+          "type": "integer",
+          "nullable": false,
+          "default": 8000,
+          "env_name": "BRIEF_MAX_NEW_CONCLUSION_TOKENS",
+          "constraints": {
+            "ge": 500,
+            "le": 100000
+          },
+          "description": "Token cap on the same list: conclusions created through the API can be long. At least one is always shown, so one huge conclusion can't stall it."
+        },
+        "budget_enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "BUDGET_ENABLED",
+          "description": "Deduction and induction see a tool-call budget line, the last iterations are reserved for writes, and the final call at the limit can still write."
+        },
+        "notes_mode": {
+          "type": "string",
+          "nullable": false,
+          "default": "off",
+          "env_name": "NOTES_MODE",
+          "enum": [
+            "off",
+            "shadow",
+            "on"
+          ],
+          "description": "Working notes carried between dreams: \"off\", \"shadow\" (written but never loaded, so a sample can be judged) or \"on\"."
+        },
+        "notes_max_tokens": {
+          "type": "integer",
+          "nullable": false,
+          "default": 3000,
+          "env_name": "NOTES_MAX_TOKENS",
+          "constraints": {
+            "ge": 100,
+            "le": 20000
+          },
+          "description": "Split evenly between deduction's and induction's own entries."
+        },
+        "write_window_iterations": {
+          "type": "integer",
+          "nullable": true,
+          "default": null,
+          "env_name": "WRITE_WINDOW_ITERATIONS",
+          "constraints": {
+            "ge": 1,
+            "le": 50
+          },
+          "description": "Iterations reserved for writes at the end of a pass. Unset means 15% of the specialist's limit, rounded, with a minimum of one, and at most one less than the limit."
+        },
+        "deduction_model_config": {
+          "type": "object",
+          "nullable": false,
+          "default": {
+            "model": "gpt-5.4-mini",
+            "transport": "openai",
+            "fallback": null,
+            "temperature": null,
+            "top_p": null,
+            "top_k": null,
+            "frequency_penalty": null,
+            "presence_penalty": null,
+            "seed": null,
+            "thinking_effort": null,
+            "thinking_budget_tokens": null,
+            "structured_output_mode": null,
+            "max_output_tokens": null,
+            "stop_sequences": null,
+            "cache_policy": null,
+            "overrides": {
+              "api_key_env": null,
+              "base_url": null,
+              "provider_params": {}
+            }
+          },
+          "env_name": "DEDUCTION_MODEL_CONFIG",
+          "model": "ConfiguredModelSettings"
+        },
+        "induction_model_config": {
+          "type": "object",
+          "nullable": false,
+          "default": {
+            "model": "gpt-5.4-mini",
+            "transport": "openai",
+            "fallback": null,
+            "temperature": null,
+            "top_p": null,
+            "top_k": null,
+            "frequency_penalty": null,
+            "presence_penalty": null,
+            "seed": null,
+            "thinking_effort": null,
+            "thinking_budget_tokens": null,
+            "structured_output_mode": null,
+            "max_output_tokens": null,
+            "stop_sequences": null,
+            "cache_policy": null,
+            "overrides": {
+              "api_key_env": null,
+              "base_url": null,
+              "provider_params": {}
+            }
+          },
+          "env_name": "INDUCTION_MODEL_CONFIG",
+          "model": "ConfiguredModelSettings"
+        },
+        "surprisal": {
+          "type": "object",
+          "nullable": false,
+          "default": {
+            "enabled": false,
+            "tree_type": "kdtree",
+            "tree_k": 5,
+            "sampling_strategy": "recent",
+            "sample_size": 200,
+            "top_percent_surprisal": 0.1,
+            "min_high_surprisal_for_replace": 10,
+            "include_levels": [
+              "explicit",
+              "deductive"
+            ]
+          },
+          "env_name": "SURPRISAL",
+          "description": "Surprisal-based sampling subsystem",
+          "model": "SurprisalSettings"
+        }
+      }
+    },
+    "vector_store": {
+      "class": "VectorStoreSettings",
+      "env_prefix": "VECTOR_STORE_",
+      "description": "Settings for vector store (pgvector, Turbopuffer, LanceDB, Qdrant, or ChromaDB).",
+      "fields": {
+        "type": {
+          "type": "string",
+          "nullable": false,
+          "default": "pgvector",
+          "env_name": "TYPE",
+          "enum": [
+            "pgvector",
+            "turbopuffer",
+            "lancedb",
+            "qdrant",
+            "chromadb"
+          ],
+          "description": "Vector store type to use"
+        },
+        "migrated": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "MIGRATED"
+        },
+        "namespace": {
+          "type": "string",
+          "nullable": false,
+          "default": "honcho",
+          "env_name": "NAMESPACE",
+          "description": "Global namespace prefix for all vector namespaces Namespaces follow the pattern: {NAMESPACE}.{type}.{hash} where hash is a base64url-encoded SHA-256 of the workspace/peer names - Documents: {NAMESPACE}.doc.{hash(workspace, observer, observed)} - Messages: {NAMESPACE}.msg.{hash(workspace)}"
+        },
+        "dimensions": {
+          "type": "integer",
+          "nullable": false,
+          "default": 1536,
+          "env_name": "DIMENSIONS",
+          "constraints": {
+            "gt": 0
+          }
+        },
+        "turbopuffer_region": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "TURBOPUFFER_REGION"
+        },
+        "lancedb_path": {
+          "type": "string",
+          "nullable": false,
+          "default": "./lancedb_data",
+          "env_name": "LANCEDB_PATH",
+          "description": "LanceDB-specific settings (local embedded mode)"
+        },
+        "qdrant_url": {
+          "type": "string",
+          "nullable": false,
+          "default": "http://localhost:6333",
+          "env_name": "QDRANT_URL",
+          "description": "Qdrant-specific settings"
+        },
+        "qdrant_prefer_grpc": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "QDRANT_PREFER_GRPC"
+        },
+        "qdrant_grpc_port": {
+          "type": "integer",
+          "nullable": false,
+          "default": 6334,
+          "env_name": "QDRANT_GRPC_PORT"
+        },
+        "qdrant_https": {
+          "type": "boolean",
+          "nullable": true,
+          "default": null,
+          "env_name": "QDRANT_HTTPS"
+        },
+        "qdrant_prefix": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "QDRANT_PREFIX"
+        },
+        "qdrant_timeout": {
+          "type": "integer",
+          "nullable": true,
+          "default": null,
+          "env_name": "QDRANT_TIMEOUT"
+        },
+        "chroma_client_mode": {
+          "type": "string",
+          "nullable": false,
+          "default": "http",
+          "env_name": "CHROMA_CLIENT_MODE",
+          "enum": [
+            "http",
+            "cloud"
+          ],
+          "description": "ChromaDB-specific settings CHROMA_CLIENT_MODE selects the deployment shape: - \"http\": self-hosted Chroma server at CHROMA_HOST:CHROMA_PORT - \"cloud\": Chroma Cloud (requires CHROMA_API_KEY) Embedded persistence is unsafe across Honcho's API/worker processes."
+        },
+        "chroma_host": {
+          "type": "string",
+          "nullable": false,
+          "default": "localhost",
+          "env_name": "CHROMA_HOST"
+        },
+        "chroma_port": {
+          "type": "integer",
+          "nullable": false,
+          "default": 8000,
+          "env_name": "CHROMA_PORT",
+          "constraints": {
+            "gt": 0
+          }
+        },
+        "chroma_ssl": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "CHROMA_SSL"
+        },
+        "chroma_tenant": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "CHROMA_TENANT",
+          "description": "Tenant/database are optional for cloud mode (resolved from the API key when omitted); ignored in http mode."
+        },
+        "chroma_database": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "CHROMA_DATABASE"
+        },
+        "reconciliation_interval_seconds": {
+          "type": "integer",
+          "nullable": false,
+          "default": 300,
+          "env_name": "RECONCILIATION_INTERVAL_SECONDS",
+          "constraints": {
+            "gt": 0
+          },
+          "description": "5 minutes"
+        }
+      }
+    },
+    "trace_viewer": {
+      "class": "TraceViewerSettings",
+      "env_prefix": "TRACE_VIEWER_",
+      "description": "",
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "ENABLED"
+        },
+        "host": {
+          "type": "string",
+          "nullable": false,
+          "default": "127.0.0.1",
+          "env_name": "HOST"
+        },
+        "port": {
+          "type": "integer",
+          "nullable": false,
+          "default": 8002,
+          "env_name": "PORT"
+        },
+        "storage_dir": {
+          "type": "string",
+          "nullable": false,
+          "default": "./traces",
+          "env_name": "STORAGE_DIR"
+        },
+        "max_request_bytes": {
+          "type": "integer",
+          "nullable": false,
+          "default": 10485760,
+          "env_name": "MAX_REQUEST_BYTES",
+          "description": "10 MB"
+        },
+        "vendor_cdn_base": {
+          "type": "string",
+          "nullable": false,
+          "default": "https://cdn.jsdelivr.net/npm",
+          "env_name": "VENDOR_CDN_BASE"
+        }
+      }
+    },
+    "app": {
+      "class": "AppSettings",
+      "env_prefix": "",
+      "description": "",
+      "fields": {
+        "log_level": {
+          "type": "string",
+          "nullable": false,
+          "default": "INFO",
+          "env_name": "LOG_LEVEL",
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "CRITICAL"
+          ],
+          "description": "Application-wide settings"
+        },
+        "performance_log_format": {
+          "type": "string",
+          "nullable": false,
+          "default": "compact",
+          "env_name": "PERFORMANCE_LOG_FORMAT",
+          "enum": [
+            "compact",
+            "rich"
+          ]
+        },
+        "session_observers_limit": {
+          "type": "integer",
+          "nullable": false,
+          "default": 10,
+          "env_name": "SESSION_OBSERVERS_LIMIT",
+          "constraints": {
+            "gt": 0
+          }
+        },
+        "max_file_size": {
+          "type": "integer",
+          "nullable": false,
+          "default": 5242880,
+          "env_name": "MAX_FILE_SIZE",
+          "constraints": {
+            "gt": 0
+          },
+          "description": "5MB"
+        },
+        "get_context_max_tokens": {
+          "type": "integer",
+          "nullable": false,
+          "default": 100000,
+          "env_name": "GET_CONTEXT_MAX_TOKENS",
+          "constraints": {
+            "gt": 0,
+            "le": 250000
+          }
+        },
+        "max_message_size": {
+          "type": "integer",
+          "nullable": false,
+          "default": 25000,
+          "env_name": "MAX_MESSAGE_SIZE",
+          "constraints": {
+            "gt": 0
+          }
+        },
+        "embed_messages": {
+          "type": "boolean",
+          "nullable": false,
+          "default": true,
+          "env_name": "EMBED_MESSAGES"
+        },
+        "langfuse_host": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "LANGFUSE_HOST"
+        },
+        "cors_origins": {
+          "type": "array",
+          "nullable": false,
+          "default": [
+            "http://localhost",
+            "http://127.0.0.1:8000",
+            "https://api.honcho.dev"
+          ],
+          "env_name": "CORS_ORIGINS",
+          "description": "Origins allowed by the FastAPI CORSMiddleware",
+          "items": "string"
+        },
+        "collect_metrics_local": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "COLLECT_METRICS_LOCAL"
+        },
+        "local_metrics_file": {
+          "type": "string",
+          "nullable": false,
+          "default": "metrics.jsonl",
+          "env_name": "LOCAL_METRICS_FILE"
+        },
+        "reasoning_traces_file": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "REASONING_TRACES_FILE",
+          "description": "Path to JSONL file for reasoning traces"
+        },
+        "namespace": {
+          "type": "string",
+          "nullable": false,
+          "default": "honcho",
+          "env_name": "NAMESPACE",
+          "description": "Top-level namespace for all settings, can be overridden by nested-model settings"
+        }
+      }
+    }
+  },
+  "models": {
+    "ConfiguredEmbeddingModelSettings": {
+      "description": "Operator-configurable persisted embedding settings.",
+      "fields": {
+        "model": {
+          "type": "string",
+          "nullable": false,
+          "default": "text-embedding-3-small",
+          "env_name": "MODEL"
+        },
+        "transport": {
+          "type": "string",
+          "nullable": false,
+          "default": "openai",
+          "env_name": "TRANSPORT",
+          "enum": [
+            "openai",
+            "gemini"
+          ]
+        },
+        "overrides": {
+          "type": "object",
+          "nullable": false,
+          "default": {
+            "api_key_env": null,
+            "base_url": null,
+            "provider_params": {}
+          },
+          "env_name": "OVERRIDES",
+          "model": "ModelOverrideSettings"
+        },
+        "dimensions_mode": {
+          "type": "string",
+          "nullable": false,
+          "default": "auto",
+          "env_name": "DIMENSIONS_MODE",
+          "enum": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        "encoding_format_mode": {
+          "type": "string",
+          "nullable": false,
+          "default": "auto",
+          "env_name": "ENCODING_FORMAT_MODE",
+          "enum": [
+            "auto",
+            "float",
+            "base64"
+          ]
+        },
+        "max_batch_size": {
+          "type": "integer",
+          "nullable": true,
+          "default": null,
+          "env_name": "MAX_BATCH_SIZE",
+          "constraints": {
+            "gt": 0
+          }
+        },
+        "timeout": {
+          "type": "number",
+          "nullable": true,
+          "default": null,
+          "env_name": "TIMEOUT",
+          "description": "Client HTTP timeout in seconds. OpenAI receives seconds; Gemini converts to ms."
+        }
+      }
+    },
+    "ConfiguredModelSettings": {
+      "description": "Operator-configurable persisted model settings.",
+      "fields": {
+        "model": {
+          "type": "string",
+          "nullable": false,
+          "default": null,
+          "env_name": "MODEL",
+          "required": true
+        },
+        "transport": {
+          "type": "string",
+          "nullable": false,
+          "default": null,
+          "env_name": "TRANSPORT",
+          "required": true,
+          "enum": [
+            "anthropic",
+            "openai",
+            "gemini"
+          ]
+        },
+        "fallback": {
+          "type": "object",
+          "nullable": true,
+          "default": null,
+          "env_name": "FALLBACK",
+          "model": "FallbackModelSettings"
+        },
+        "temperature": {
+          "type": "number",
+          "nullable": true,
+          "default": null,
+          "env_name": "TEMPERATURE"
+        },
+        "top_p": {
+          "type": "number",
+          "nullable": true,
+          "default": null,
+          "env_name": "TOP_P"
+        },
+        "top_k": {
+          "type": "integer",
+          "nullable": true,
+          "default": null,
+          "env_name": "TOP_K"
+        },
+        "frequency_penalty": {
+          "type": "number",
+          "nullable": true,
+          "default": null,
+          "env_name": "FREQUENCY_PENALTY"
+        },
+        "presence_penalty": {
+          "type": "number",
+          "nullable": true,
+          "default": null,
+          "env_name": "PRESENCE_PENALTY"
+        },
+        "seed": {
+          "type": "integer",
+          "nullable": true,
+          "default": null,
+          "env_name": "SEED"
+        },
+        "thinking_effort": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "THINKING_EFFORT",
+          "enum": [
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        },
+        "thinking_budget_tokens": {
+          "type": "integer",
+          "nullable": true,
+          "default": null,
+          "env_name": "THINKING_BUDGET_TOKENS"
+        },
+        "structured_output_mode": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "STRUCTURED_OUTPUT_MODE",
+          "enum": [
+            "json_schema",
+            "json_object"
+          ]
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "nullable": true,
+          "default": null,
+          "env_name": "MAX_OUTPUT_TOKENS"
+        },
+        "stop_sequences": {
+          "type": "array",
+          "nullable": true,
+          "default": null,
+          "env_name": "STOP_SEQUENCES",
+          "items": "string"
+        },
+        "cache_policy": {
+          "type": "object",
+          "nullable": true,
+          "default": null,
+          "env_name": "CACHE_POLICY",
+          "model": "PromptCachePolicy"
+        },
+        "overrides": {
+          "type": "object",
+          "nullable": false,
+          "default": {
+            "api_key_env": null,
+            "base_url": null,
+            "provider_params": {}
+          },
+          "env_name": "OVERRIDES",
+          "model": "ModelOverrideSettings"
+        }
+      }
+    },
+    "DialecticLevelSettings": {
+      "description": "Settings for a specific reasoning level in the dialectic.",
+      "fields": {
+        "model_config": {
+          "type": "object",
+          "nullable": false,
+          "default": {
+            "model": null,
+            "transport": null,
+            "fallback": null,
+            "temperature": null,
+            "top_p": null,
+            "top_k": null,
+            "frequency_penalty": null,
+            "presence_penalty": null,
+            "seed": null,
+            "thinking_effort": null,
+            "thinking_budget_tokens": null,
+            "structured_output_mode": null,
+            "max_output_tokens": null,
+            "stop_sequences": null,
+            "cache_policy": null,
+            "overrides": {
+              "api_key_env": null,
+              "base_url": null,
+              "provider_params": {}
+            }
+          },
+          "env_name": "MODEL_CONFIG",
+          "model": "ConfiguredModelSettings"
+        },
+        "max_tool_iterations": {
+          "type": "integer",
+          "nullable": false,
+          "default": null,
+          "env_name": "MAX_TOOL_ITERATIONS",
+          "required": true,
+          "constraints": {
+            "ge": 0,
+            "le": 50
+          }
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "nullable": true,
+          "default": null,
+          "env_name": "MAX_OUTPUT_TOKENS",
+          "constraints": {
+            "ge": 1,
+            "le": 100000
+          },
+          "description": "None means use global DIALECTIC.MAX_OUTPUT_TOKENS"
+        },
+        "tool_choice": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "TOOL_CHOICE",
+          "description": "None/auto lets model decide, \"any\"/\"required\" forces tool use"
+        }
+      }
+    },
+    "SurprisalSettings": {
+      "description": "Settings for tree-based surprisal sampling during dreams.",
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "nullable": false,
+          "default": false,
+          "env_name": "ENABLED"
+        },
+        "tree_type": {
+          "type": "string",
+          "nullable": false,
+          "default": "kdtree",
+          "env_name": "TREE_TYPE",
+          "enum": [
+            "kdtree",
+            "balltree",
+            "rptree",
+            "covertree",
+            "lsh",
+            "graph",
+            "prototype"
+          ],
+          "description": "Tree configuration"
+        },
+        "tree_k": {
+          "type": "integer",
+          "nullable": false,
+          "default": 5,
+          "env_name": "TREE_K",
+          "constraints": {
+            "gt": 0,
+            "le": 20
+          },
+          "description": "k for kNN-based trees"
+        },
+        "sampling_strategy": {
+          "type": "string",
+          "nullable": false,
+          "default": "recent",
+          "env_name": "SAMPLING_STRATEGY",
+          "enum": [
+            "recent",
+            "random",
+            "all"
+          ],
+          "description": "Sampling strategy"
+        },
+        "sample_size": {
+          "type": "integer",
+          "nullable": false,
+          "default": 200,
+          "env_name": "SAMPLE_SIZE",
+          "constraints": {
+            "gt": 0,
+            "le": 2000
+          }
+        },
+        "top_percent_surprisal": {
+          "type": "number",
+          "nullable": false,
+          "default": 0.1,
+          "env_name": "TOP_PERCENT_SURPRISAL",
+          "constraints": {
+            "gt": 0.0,
+            "le": 1.0
+          },
+          "description": "Top 10% of observations"
+        },
+        "min_high_surprisal_for_replace": {
+          "type": "integer",
+          "nullable": false,
+          "default": 10,
+          "env_name": "MIN_HIGH_SURPRISAL_FOR_REPLACE",
+          "constraints": {
+            "gt": 0
+          },
+          "description": "Hybrid mode: min high-surprisal observations to replace standard questions"
+        },
+        "include_levels": {
+          "type": "array",
+          "nullable": false,
+          "default": [
+            "explicit",
+            "deductive"
+          ],
+          "env_name": "INCLUDE_LEVELS",
+          "description": "Observation level filtering",
+          "items": "string"
+        }
+      }
+    },
+    "ModelOverrideSettings": {
+      "description": "Advanced module-level transport overrides.",
+      "fields": {
+        "api_key_env": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "API_KEY_ENV"
+        },
+        "base_url": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "BASE_URL"
+        },
+        "provider_params": {
+          "type": "object",
+          "nullable": false,
+          "default": {},
+          "env_name": "PROVIDER_PARAMS",
+          "description": "Operator escape hatch for provider-specific request fields. Three recognized keys: `extra_body` (merged into the request body), `extra_headers` (HTTP headers), `extra_query` (URL query params). OpenAI and Anthropic transports forward these as identically-named SDK kwargs. The Gemini transport merges `extra_body` into the GenerateContentConfig dict and folds `extra_headers` into `http_options.headers`; `extra_query` is unsupported. Shallow merge with operator-wins — if Honcho and the operator both set the same key inside `extra_body`, the operator's value replaces Honcho's. Operators are responsible for picking a coherent combination of this and other config (e.g. unset `thinking_budget_tokens` when supplying an `extra_body.thinking` for Anthropic-via-proxy).",
+          "free": true
+        }
+      }
+    },
+    "FallbackModelSettings": {
+      "description": "Independent fallback model configuration. No inheritance from primary.",
+      "fields": {
+        "model": {
+          "type": "string",
+          "nullable": false,
+          "default": null,
+          "env_name": "MODEL",
+          "required": true
+        },
+        "transport": {
+          "type": "string",
+          "nullable": false,
+          "default": null,
+          "env_name": "TRANSPORT",
+          "required": true,
+          "enum": [
+            "anthropic",
+            "openai",
+            "gemini"
+          ]
+        },
+        "temperature": {
+          "type": "number",
+          "nullable": true,
+          "default": null,
+          "env_name": "TEMPERATURE"
+        },
+        "top_p": {
+          "type": "number",
+          "nullable": true,
+          "default": null,
+          "env_name": "TOP_P"
+        },
+        "top_k": {
+          "type": "integer",
+          "nullable": true,
+          "default": null,
+          "env_name": "TOP_K"
+        },
+        "frequency_penalty": {
+          "type": "number",
+          "nullable": true,
+          "default": null,
+          "env_name": "FREQUENCY_PENALTY"
+        },
+        "presence_penalty": {
+          "type": "number",
+          "nullable": true,
+          "default": null,
+          "env_name": "PRESENCE_PENALTY"
+        },
+        "seed": {
+          "type": "integer",
+          "nullable": true,
+          "default": null,
+          "env_name": "SEED"
+        },
+        "thinking_effort": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "THINKING_EFFORT",
+          "enum": [
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        },
+        "thinking_budget_tokens": {
+          "type": "integer",
+          "nullable": true,
+          "default": null,
+          "env_name": "THINKING_BUDGET_TOKENS"
+        },
+        "structured_output_mode": {
+          "type": "string",
+          "nullable": true,
+          "default": null,
+          "env_name": "STRUCTURED_OUTPUT_MODE",
+          "enum": [
+            "json_schema",
+            "json_object"
+          ]
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "nullable": true,
+          "default": null,
+          "env_name": "MAX_OUTPUT_TOKENS"
+        },
+        "stop_sequences": {
+          "type": "array",
+          "nullable": true,
+          "default": null,
+          "env_name": "STOP_SEQUENCES",
+          "items": "string"
+        },
+        "cache_policy": {
+          "type": "object",
+          "nullable": true,
+          "default": null,
+          "env_name": "CACHE_POLICY",
+          "model": "PromptCachePolicy"
+        },
+        "overrides": {
+          "type": "object",
+          "nullable": false,
+          "default": {
+            "api_key_env": null,
+            "base_url": null,
+            "provider_params": {}
+          },
+          "env_name": "OVERRIDES",
+          "model": "ModelOverrideSettings"
+        }
+      }
+    },
+    "PromptCachePolicy": {
+      "description": "Per-call prompt-caching configuration. Lives in config.py (not src/llm/caching.py) so ModelConfig can reference it as a field without a circular import. src/llm/caching.py re-exports this class for existing import paths.",
+      "fields": {
+        "mode": {
+          "type": "string",
+          "nullable": false,
+          "default": "none",
+          "env_name": "MODE",
+          "enum": [
+            "none",
+            "prefix",
+            "gemini_cached_content"
+          ]
+        },
+        "ttl_seconds": {
+          "type": "integer",
+          "nullable": true,
+          "default": null,
+          "env_name": "TTL_SECONDS"
+        },
+        "key_version": {
+          "type": "string",
+          "nullable": false,
+          "default": "v1",
+          "env_name": "KEY_VERSION"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,423 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "settings.schema.json",
+  "title": "settings.json",
+  "description": "Live behaviour file. Re-read on change. Names env vars for keys; never holds a key or token.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mode", "scheduler", "providers", "defaults", "peers", "pairs"],
+  "properties": {
+    "_help": {
+      "description": "Human note. Ignored by consumers.",
+      "$ref": "#/$defs/helpText"
+    },
+    "mode": {
+      "description": "stock: Honcho dreams on its own and the scheduler sleeps. scheduler: the scheduler queues dreams and the hook runs only those marked by it.",
+      "enum": ["stock", "scheduler"]
+    },
+    "scheduler": { "$ref": "#/$defs/scheduler" },
+    "providers": { "$ref": "#/$defs/providers" },
+    "defaults": { "$ref": "#/$defs/dreamSettings" },
+    "peers": { "$ref": "#/$defs/peerMap" },
+    "pairs": { "$ref": "#/$defs/pairMap" },
+    "rerank": { "$ref": "#/$defs/rerankGlobal" },
+    "logs": { "$ref": "#/$defs/logs" }
+  },
+  "$defs": {
+    "logs": {
+      "description": "Optional rotation for policy-used.log, runs.log, dream-nas.log and restart.log. Defaults are max_mb 10 and keep 1.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_mb": { "description": "Rotate a log once it grows past this many megabytes.", "type": "number", "exclusiveMinimum": 0 },
+        "keep": { "description": "How many rotated files to keep, from .1 up to .keep.", "type": "integer", "minimum": 1, "maximum": 10 }
+      }
+    },
+    "helpText": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "(?:^|[^A-Za-z0-9])(?:sk-|AIza|Bearer |eyJ)" }
+    },
+    "secretlessString": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "(?:^|[^A-Za-z0-9])(?:sk-|AIza|Bearer |eyJ)" }
+    },
+    "effort": {
+      "description": "none (thinking off), minimal, low, medium, high, xhigh, max. Request effort wins over the backend default.",
+      "enum": ["none", "minimal", "low", "medium", "high", "xhigh", "max"]
+    },
+    "brief": {
+      "description": "Maximum new conclusions in a dream brief.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "rounds": {
+      "description": "Tool-iteration cap for one dream pass.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "peerName": {
+      "allOf": [
+        { "$ref": "#/$defs/secretlessString" },
+        { "pattern": "^[^/\\s]+$" }
+      ]
+    },
+    "pairKey": {
+      "allOf": [
+        { "$ref": "#/$defs/secretlessString" },
+        { "pattern": "^[^/\\s]+/[^/\\s]+$" }
+      ]
+    },
+    "modelName": {
+      "description": "Model id sent to the backend. Placeholders may contain spaces.",
+      "$ref": "#/$defs/secretlessString"
+    },
+    "keyEnv": {
+      "description": "Name of the environment variable that holds the key; it must end in _KEY. The key itself stays in the environment.",
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*_KEY$",
+      "not": { "pattern": "(?:^|[^A-Za-z0-9])(?:sk-|AIza|Bearer |eyJ)" }
+    },
+    "baseUrl": {
+      "allOf": [
+        { "$ref": "#/$defs/secretlessString" },
+        { "pattern": "^https?://\\S+$" }
+      ]
+    },
+    "backendName": {
+      "description": "Key under providers.backends.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$"
+    },
+    "briefTokens": { "description": "Token budget for new conclusions in one dream (Honcho dream.brief_max_new_conclusion_tokens).", "type": "integer", "minimum": 500, "maximum": 100000 },
+    "toolCalls": { "description": "Tool-call cap for one dream (Honcho dream.max_tool_iterations).", "type": "integer", "minimum": 1, "maximum": 50 },
+    "notesMode": { "description": "Working notes during the dream (Honcho dream.notes_mode).", "enum": ["off", "shadow", "on"] },
+    "notesTokens": { "description": "Working notes size in tokens (Honcho dream.notes_max_tokens).", "type": "integer", "minimum": 100, "maximum": 20000 },
+    "budget": { "description": "Show the model its remaining budget (Honcho dream.budget_enabled).", "type": "boolean" },
+    "writeWindow": { "description": "Last rounds in which the model may still write (Honcho dream.write_window_iterations).", "type": "integer", "minimum": 1, "maximum": 50 },
+    "rerankBaseUrl": {
+      "allOf": [
+        { "$ref": "#/$defs/secretlessString" },
+        { "pattern": "^https?://[^\\s/?#@]+(?:/[^\\s?#]*)?$" }
+      ]
+    },
+    "rerankGlobal": {
+      "description": "Global rerank settings for the honcho_rerank component, read by the API and the deriver (hot, on file change). The per-dream blocks (rerankOverride) replace these keys for one dream. Names, types and ranges follow the component's RerankSettings. Never holds a key: it is RERANK_API_KEY in the environment of both containers.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "description": "Rerank the searches listed in callers.", "type": "boolean" },
+        "provider": { "description": "Request and response format.", "enum": ["voyage", "cohere", "jina", "tei"] },
+        "model": { "description": "Model name sent as-is.", "$ref": "#/$defs/secretlessString" },
+        "base_url": { "description": "API root without /rerank: http or https, a host, no credentials, query or fragment. The key is RERANK_API_KEY in the environment.", "$ref": "#/$defs/rerankBaseUrl" },
+        "candidates": { "description": "Pool fetched by vector search and sent to the reranker.", "type": "integer", "minimum": 1, "maximum": 1000 },
+        "max_documents": { "description": "Most documents one request may carry.", "type": "integer", "minimum": 1, "maximum": 10000 },
+        "max_query_chars": { "description": "Longer queries are cut to this many characters before the request.", "type": "integer", "minimum": 1 },
+        "timeout_seconds": { "description": "Deadline for the counter and the HTTP call, above 0.", "type": "number", "exclusiveMinimum": 0 },
+        "callers": {
+          "description": "Searches to rerank. Duplicate detection is never reranked.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["dream", "dialectic", "prefetch", "conclusions_api"] }
+        },
+        "min_score": { "description": "Ranked results below this score are dropped.", "type": "number" },
+        "daily_request_cap": { "description": "Most provider requests per UTC day; 0 never calls the provider. Per-dream caps cannot exceed it.", "type": "integer", "minimum": 0 },
+        "failures_before_cooldown": { "description": "Consecutive failures before the provider pauses. Shared by all dreams, so it is set only here.", "type": "integer", "minimum": 1 },
+        "cooldown_seconds": { "description": "Length of the pause, 0 or more. Shared by all dreams, so it is set only here.", "type": "number", "minimum": 0 }
+      }
+    },
+    "rerankOverride": {
+      "description": "Rerank fields replaced for one dream (the component's rerank settings). Each key resolves pair, then peers[observer], then peers[observed], then defaults; a key set nowhere keeps Honcho's value. Names, types and ranges follow Honcho's RerankSettings. Never an api_key: the key stays in the deriver's environment (RERANK_API_KEY).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "description": "Rerank the dream's searches.", "type": "boolean" },
+        "provider": { "description": "Request and response format.", "enum": ["voyage", "cohere", "jina", "tei"] },
+        "model": { "description": "Model name sent as-is.", "$ref": "#/$defs/secretlessString" },
+        "base_url": { "description": "API root without /rerank: http or https, a host, no credentials, query or fragment, as the component's base_url rule. The key is RERANK_API_KEY in the environment.", "$ref": "#/$defs/rerankBaseUrl" },
+        "candidates": { "description": "Pool fetched by vector search and sent to the reranker.", "type": "integer", "minimum": 1, "maximum": 1000 },
+        "max_documents": { "description": "Most documents one request may carry.", "type": "integer", "minimum": 1, "maximum": 10000 },
+        "timeout_seconds": { "description": "Deadline for the counter and the HTTP call, above 0.", "type": "number", "exclusiveMinimum": 0 },
+        "min_score": { "description": "Ranked results below this score are dropped.", "type": "number" },
+        "daily_request_cap": { "description": "Most provider requests per UTC day; 0 never calls the provider.", "type": "integer", "minimum": 0 }
+      }
+    },
+    "backendRef": {
+      "description": "A key of providers.backends, or <backend>:<model> for one id in that backend's models list. Null inherits. validate.py checks that the name exists.",
+      "anyOf": [
+        { "type": "null" },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/secretlessString" },
+            { "pattern": "^[a-z][a-z0-9_-]*(?::\\S+)?$" }
+          ]
+        }
+      ]
+    },
+    "scheduler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["poll_seconds", "max_parallel", "dream_type", "skip"],
+      "properties": {
+        "poll_seconds": {
+          "description": "Seconds between scheduler polls.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600
+        },
+        "max_parallel": {
+          "description": "Dreams the scheduler may have queued at once.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "dream_type": {
+          "description": "omni runs deduction and induction; card_refresh updates the peer card only.",
+          "enum": ["omni", "card_refresh"]
+        },
+        "skip": {
+          "description": "Pair keys the scheduler leaves out. Each key is observer/observed.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/pairKey" }
+        }
+      }
+    },
+    "providers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active", "concurrency", "timeout_seconds", "backends"],
+      "properties": {
+        "active": {
+          "description": "Backend used when the pair, the peer and defaults.backend are null. <backend>:<model> selects one id from that backend's models list.",
+          "$ref": "#/$defs/backendRefActive"
+        },
+        "concurrency": {
+          "description": "In-flight bridge requests. Replaces BRIDGE_CONCURRENCY.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "timeout_seconds": {
+          "description": "Bridge request timeout in seconds, capped at 570 (below the OpenAI client's 600). Replaces BRIDGE_TIMEOUT.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        },
+        "backends": { "$ref": "#/$defs/backends" },
+        "stages": {
+          "description": "Hot bridge aliases. A string is backend:model with no per-job effort. An object sets that effort.",
+          "type": "object",
+          "propertyNames": {"enum": ["deriver", "summary", "dialectic.minimal", "dialectic.low", "dialectic.medium", "dialectic.high", "dialectic.max", "dream.deduction", "dream.induction", "peer_card"]},
+          "additionalProperties": {
+            "oneOf": [
+              {"$ref": "#/$defs/backendRefActive"},
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["model", "effort"],
+                "properties": {
+                  "model": {"$ref": "#/$defs/backendRefActive"},
+                  "effort": {"$ref": "#/$defs/effort"}
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "backendRefActive": {
+      "allOf": [
+        { "$ref": "#/$defs/secretlessString" },
+        { "pattern": "^[a-z][a-z0-9_-]*(?::\\S+)?$" }
+      ]
+    },
+    "backends": {
+      "description": "Any number of named backends. A name is free; the kind decides the fields.",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/backendName" },
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": { "$ref": "#/$defs/backend" }
+      }
+    },
+    "backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "description": "cli-codex and cli-claude call the local CLIs. openai-compat is an OpenAI-style HTTP API. anthropic-api is the Anthropic Messages API.",
+          "enum": ["cli-codex", "cli-claude", "openai-compat", "anthropic-api"]
+        },
+        "model": {
+          "description": "Model id sent to this backend.",
+          "$ref": "#/$defs/modelName"
+        },
+        "effort": {
+          "description": "Backend default effort for a CLI kind. A dream's own effort wins.",
+          "$ref": "#/$defs/effort"
+        },
+        "base_url": {
+          "description": "API origin, including the /v1 prefix when the provider uses one.",
+          "$ref": "#/$defs/baseUrl"
+        },
+        "key_env": { "$ref": "#/$defs/keyEnv" },
+        "models": {
+          "description": "Model ids offered as <backend>:<model>. Does not change how effort is sent.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/modelName" }
+        },
+        "thinking_effort": {
+          "description": "Backend default effort for an HTTP backend. The request's own effort wins. Does not change how effort is sent; effort_style or the base_url host does.",
+          "$ref": "#/$defs/effort"
+        },
+        "effort_style": {
+          "description": "How effort reaches the provider. openai: reasoning_effort, minimal sent as low. deepseek: thinking enabled plus reasoning_effort low, high or max. openrouter: reasoning.effort, any level. glm: reasoning_effort low, high or max, only for GLM-5.2 and later. anthropic: Anthropic levels (output_config.effort on anthropic-api, reasoning_effort on openai-compat). none: no effort sent. The effort level none (thinking off) is sent as reasoning_effort none (openai, deepseek, generic), reasoning.effort none (openrouter), thinking disabled (glm from GLM-4.6 except GLM-5.3, and anthropic-api with no output_config.effort). Without it the base_url host decides (openrouter.ai, deepseek.com, z.ai, bigmodel.cn, api.openai.com), else reasoning_effort with the level unchanged.",
+          "enum": ["openai", "deepseek", "openrouter", "glm", "anthropic", "none"]
+        },
+        "enabled": {
+          "description": "False greys the backend out. The active backend stays enabled.",
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "kind": { "enum": ["cli-codex", "cli-claude"] } },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["model", "effort"],
+            "not": {
+              "anyOf": [
+                { "required": ["base_url"] },
+                { "required": ["key_env"] },
+                { "required": ["models"] },
+                { "required": ["thinking_effort"] },
+                { "required": ["effort_style"] }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kind": { "const": "openai-compat" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["base_url", "key_env", "model"],
+            "not": { "required": ["effort"] }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kind": { "const": "anthropic-api" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["key_env", "model"],
+            "properties": { "effort_style": { "enum": ["anthropic", "none"] } },
+            "not": {
+              "anyOf": [
+                { "required": ["base_url"] },
+                { "required": ["models"] },
+                { "required": ["thinking_effort"] },
+                { "required": ["effort"] }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "base_url": { "const": "https://openrouter.ai/api/v1" } },
+            "required": ["base_url"]
+          },
+          "then": { "required": ["models"] }
+        }
+      ]
+    },
+    "dreamSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Every key is optional: a key left out keeps Honcho's own value from config.toml.",
+      "properties": {
+        "brief": { "$ref": "#/$defs/brief" },
+        "effort": { "$ref": "#/$defs/effort" },
+        "deduction_rounds": { "$ref": "#/$defs/rounds" },
+        "induction_rounds": { "$ref": "#/$defs/rounds" },
+        "brief_tokens": { "$ref": "#/$defs/briefTokens" },
+        "tool_calls": { "$ref": "#/$defs/toolCalls" },
+        "notes": { "$ref": "#/$defs/notesMode" },
+        "notes_tokens": { "$ref": "#/$defs/notesTokens" },
+        "budget": { "$ref": "#/$defs/budget" },
+        "write_window": { "$ref": "#/$defs/writeWindow" },
+        "rerank": { "$ref": "#/$defs/rerankOverride" },
+        "backend": { "$ref": "#/$defs/backendRef" }
+      }
+    },
+    "peerOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled"],
+      "properties": {
+        "enabled": {
+          "description": "False skips dreams whose observer or observed is this peer.",
+          "type": "boolean"
+        },
+        "brief": { "$ref": "#/$defs/brief" },
+        "effort": { "$ref": "#/$defs/effort" },
+        "deduction_rounds": { "$ref": "#/$defs/rounds" },
+        "induction_rounds": { "$ref": "#/$defs/rounds" },
+        "brief_tokens": { "$ref": "#/$defs/briefTokens" },
+        "tool_calls": { "$ref": "#/$defs/toolCalls" },
+        "notes": { "$ref": "#/$defs/notesMode" },
+        "notes_tokens": { "$ref": "#/$defs/notesTokens" },
+        "budget": { "$ref": "#/$defs/budget" },
+        "write_window": { "$ref": "#/$defs/writeWindow" },
+        "rerank": { "$ref": "#/$defs/rerankOverride" },
+        "backend": { "$ref": "#/$defs/backendRef" }
+      }
+    },
+    "pairOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Empty object inherits defaults.",
+      "properties": {
+        "brief": { "$ref": "#/$defs/brief" },
+        "effort": { "$ref": "#/$defs/effort" },
+        "deduction_rounds": { "$ref": "#/$defs/rounds" },
+        "induction_rounds": { "$ref": "#/$defs/rounds" },
+        "brief_tokens": { "$ref": "#/$defs/briefTokens" },
+        "tool_calls": { "$ref": "#/$defs/toolCalls" },
+        "notes": { "$ref": "#/$defs/notesMode" },
+        "notes_tokens": { "$ref": "#/$defs/notesTokens" },
+        "budget": { "$ref": "#/$defs/budget" },
+        "write_window": { "$ref": "#/$defs/writeWindow" },
+        "rerank": { "$ref": "#/$defs/rerankOverride" },
+        "backend": { "$ref": "#/$defs/backendRef" }
+      }
+    },
+    "peerMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyNames": { "$ref": "#/$defs/peerName" },
+      "patternProperties": {
+        "^[^/\\s]+$": { "$ref": "#/$defs/peerOverride" }
+      }
+    },
+    "pairMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyNames": { "$ref": "#/$defs/pairKey" },
+      "patternProperties": {
+        "^[^/\\s]+/[^/\\s]+$": { "$ref": "#/$defs/pairOverride" }
+      }
+    }
+  }
+}

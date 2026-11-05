@@ -1,0 +1,8 @@
+# Test tools and the packages the offline test suites import (tests/ and the components they load).
+pytest>=8.0
+pytest-asyncio>=0.23
+fastapi>=0.110
+httpx>=0.27
+jsonschema>=4.20
+tomlkit>=0.12
+pyyaml>=6.0

@@ -1,0 +1,3 @@
+# Direct packages. Installed by the Dockerfile.
+httpx
+psycopg[binary]

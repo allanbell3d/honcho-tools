@@ -1,0 +1,520 @@
+{
+ "arms": {
+  "ef100": {
+   "all": {
+    "db_ms_median": 43.5032,
+    "db_ms_p95": 201.4386,
+    "fill": 0.7979,
+    "identical_to_exact": 0.8872,
+    "recall": 0.9895,
+    "searches": 6463,
+    "searches_with_exact_result": 5336,
+    "underfilled": 0.2284
+   },
+   "dialectic": {
+    "db_ms_median": 28.409,
+    "db_ms_p95": 236.5202,
+    "fill": 0.6511,
+    "identical_to_exact": 0.7379,
+    "recall": 0.9818,
+    "searches": 305,
+    "searches_with_exact_result": 206,
+    "underfilled": 0.3869
+   },
+   "dialectic_prefetch": {
+    "db_ms_median": 27.2944,
+    "db_ms_p95": 599.8415,
+    "fill": 0.5849,
+    "identical_to_exact": 0.8835,
+    "recall": 0.9928,
+    "searches": 158,
+    "searches_with_exact_result": 103,
+    "underfilled": 0.4367
+   },
+   "dream.deduction": {
+    "db_ms_median": 38.9841,
+    "db_ms_p95": 216.3072,
+    "fill": 0.8128,
+    "identical_to_exact": 0.8916,
+    "recall": 0.9878,
+    "searches": 3000,
+    "searches_with_exact_result": 2547,
+    "underfilled": 0.2257
+   },
+   "dream.induction": {
+    "db_ms_median": 58.2396,
+    "db_ms_p95": 191.1357,
+    "fill": 0.8093,
+    "identical_to_exact": 0.8952,
+    "recall": 0.9917,
+    "searches": 3000,
+    "searches_with_exact_result": 2480,
+    "underfilled": 0.204
+   }
+  },
+  "ef150": {
+   "all": {
+    "db_ms_median": 42.8929,
+    "db_ms_p95": 257.4925,
+    "fill": 0.7979,
+    "identical_to_exact": 0.9099,
+    "recall": 0.9928,
+    "searches": 6463,
+    "searches_with_exact_result": 5336,
+    "underfilled": 0.2284
+   },
+   "dialectic": {
+    "db_ms_median": 34.5865,
+    "db_ms_p95": 257.4881,
+    "fill": 0.6511,
+    "identical_to_exact": 0.7476,
+    "recall": 0.9853,
+    "searches": 305,
+    "searches_with_exact_result": 206,
+    "underfilled": 0.3869
+   },
+   "dialectic_prefetch": {
+    "db_ms_median": 24.1737,
+    "db_ms_p95": 245.9217,
+    "fill": 0.5849,
+    "identical_to_exact": 0.9126,
+    "recall": 0.9961,
+    "searches": 158,
+    "searches_with_exact_result": 103,
+    "underfilled": 0.4367
+   },
+   "dream.deduction": {
+    "db_ms_median": 38.9895,
+    "db_ms_p95": 259.0005,
+    "fill": 0.8128,
+    "identical_to_exact": 0.9105,
+    "recall": 0.9915,
+    "searches": 3000,
+    "searches_with_exact_result": 2547,
+    "underfilled": 0.2257
+   },
+   "dream.induction": {
+    "db_ms_median": 54.1558,
+    "db_ms_p95": 256.2604,
+    "fill": 0.8093,
+    "identical_to_exact": 0.9226,
+    "recall": 0.9948,
+    "searches": 3000,
+    "searches_with_exact_result": 2480,
+    "underfilled": 0.204
+   }
+  },
+  "ef200": {
+   "all": {
+    "db_ms_median": 39.2898,
+    "db_ms_p95": 274.9909,
+    "fill": 0.7979,
+    "identical_to_exact": 0.9217,
+    "recall": 0.9947,
+    "searches": 6463,
+    "searches_with_exact_result": 5336,
+    "underfilled": 0.2284
+   },
+   "dialectic": {
+    "db_ms_median": 28.9785,
+    "db_ms_p95": 235.866,
+    "fill": 0.6511,
+    "identical_to_exact": 0.7718,
+    "recall": 0.99,
+    "searches": 305,
+    "searches_with_exact_result": 206,
+    "underfilled": 0.3869
+   },
+   "dialectic_prefetch": {
+    "db_ms_median": 23.4951,
+    "db_ms_p95": 575.3218,
+    "fill": 0.5849,
+    "identical_to_exact": 0.9126,
+    "recall": 0.9961,
+    "searches": 158,
+    "searches_with_exact_result": 103,
+    "underfilled": 0.4367
+   },
+   "dream.deduction": {
+    "db_ms_median": 34.5785,
+    "db_ms_p95": 276.3709,
+    "fill": 0.8128,
+    "identical_to_exact": 0.9195,
+    "recall": 0.9935,
+    "searches": 3000,
+    "searches_with_exact_result": 2547,
+    "underfilled": 0.2257
+   },
+   "dream.induction": {
+    "db_ms_median": 47.0752,
+    "db_ms_p95": 270.8999,
+    "fill": 0.8093,
+    "identical_to_exact": 0.9367,
+    "recall": 0.9962,
+    "searches": 3000,
+    "searches_with_exact_result": 2480,
+    "underfilled": 0.204
+   }
+  },
+  "ef250": {
+   "all": {
+    "db_ms_median": 40.4195,
+    "db_ms_p95": 303.4758,
+    "fill": 0.7979,
+    "identical_to_exact": 0.9303,
+    "recall": 0.9961,
+    "searches": 6463,
+    "searches_with_exact_result": 5336,
+    "underfilled": 0.2284
+   },
+   "dialectic": {
+    "db_ms_median": 37.0083,
+    "db_ms_p95": 274.611,
+    "fill": 0.6511,
+    "identical_to_exact": 0.7767,
+    "recall": 0.992,
+    "searches": 305,
+    "searches_with_exact_result": 206,
+    "underfilled": 0.3869
+   },
+   "dialectic_prefetch": {
+    "db_ms_median": 25.3976,
+    "db_ms_p95": 553.2485,
+    "fill": 0.5849,
+    "identical_to_exact": 0.932,
+    "recall": 0.9977,
+    "searches": 158,
+    "searches_with_exact_result": 103,
+    "underfilled": 0.4367
+   },
+   "dream.deduction": {
+    "db_ms_median": 36.4146,
+    "db_ms_p95": 301.892,
+    "fill": 0.8128,
+    "identical_to_exact": 0.9274,
+    "recall": 0.9951,
+    "searches": 3000,
+    "searches_with_exact_result": 2547,
+    "underfilled": 0.2257
+   },
+   "dream.induction": {
+    "db_ms_median": 49.7366,
+    "db_ms_p95": 302.3284,
+    "fill": 0.8093,
+    "identical_to_exact": 0.946,
+    "recall": 0.9974,
+    "searches": 3000,
+    "searches_with_exact_result": 2480,
+    "underfilled": 0.204
+   }
+  },
+  "ef300": {
+   "all": {
+    "db_ms_median": 40.9212,
+    "db_ms_p95": 600.4214,
+    "fill": 0.7979,
+    "identical_to_exact": 0.9769,
+    "recall": 0.9985,
+    "searches": 6463,
+    "searches_with_exact_result": 5336,
+    "underfilled": 0.2284
+   },
+   "dialectic": {
+    "db_ms_median": 36.612,
+    "db_ms_p95": 620.7329,
+    "fill": 0.6511,
+    "identical_to_exact": 0.8835,
+    "recall": 0.996,
+    "searches": 305,
+    "searches_with_exact_result": 206,
+    "underfilled": 0.3869
+   },
+   "dialectic_prefetch": {
+    "db_ms_median": 24.985,
+    "db_ms_p95": 493.6855,
+    "fill": 0.5849,
+    "identical_to_exact": 1.0,
+    "recall": 1.0,
+    "searches": 158,
+    "searches_with_exact_result": 103,
+    "underfilled": 0.4367
+   },
+   "dream.deduction": {
+    "db_ms_median": 36.44,
+    "db_ms_p95": 591.2625,
+    "fill": 0.8128,
+    "identical_to_exact": 0.9792,
+    "recall": 0.9982,
+    "searches": 3000,
+    "searches_with_exact_result": 2547,
+    "underfilled": 0.2257
+   },
+   "dream.induction": {
+    "db_ms_median": 52.7895,
+    "db_ms_p95": 603.9972,
+    "fill": 0.8093,
+    "identical_to_exact": 0.9815,
+    "recall": 0.9989,
+    "searches": 3000,
+    "searches_with_exact_result": 2480,
+    "underfilled": 0.204
+   }
+  },
+  "ef400": {
+   "all": {
+    "db_ms_median": 36.7824,
+    "db_ms_p95": 648.4326,
+    "fill": 0.7979,
+    "identical_to_exact": 1.0,
+    "recall": 1.0,
+    "searches": 6463,
+    "searches_with_exact_result": 5336,
+    "underfilled": 0.2284
+   },
+   "dialectic": {
+    "db_ms_median": 33.6411,
+    "db_ms_p95": 616.7582,
+    "fill": 0.6511,
+    "identical_to_exact": 1.0,
+    "recall": 1.0,
+    "searches": 305,
+    "searches_with_exact_result": 206,
+    "underfilled": 0.3869
+   },
+   "dialectic_prefetch": {
+    "db_ms_median": 22.6417,
+    "db_ms_p95": 504.8838,
+    "fill": 0.5849,
+    "identical_to_exact": 1.0,
+    "recall": 1.0,
+    "searches": 158,
+    "searches_with_exact_result": 103,
+    "underfilled": 0.4367
+   },
+   "dream.deduction": {
+    "db_ms_median": 32.7858,
+    "db_ms_p95": 640.1343,
+    "fill": 0.8128,
+    "identical_to_exact": 1.0,
+    "recall": 1.0,
+    "searches": 3000,
+    "searches_with_exact_result": 2547,
+    "underfilled": 0.2257
+   },
+   "dream.induction": {
+    "db_ms_median": 52.7051,
+    "db_ms_p95": 669.4781,
+    "fill": 0.8093,
+    "identical_to_exact": 1.0,
+    "recall": 1.0,
+    "searches": 3000,
+    "searches_with_exact_result": 2480,
+    "underfilled": 0.204
+   }
+  },
+  "relaxed200": {
+   "all": {
+    "db_ms_median": 41.304,
+    "db_ms_p95": 268.5097,
+    "fill": 0.7979,
+    "identical_to_exact": 0.9219,
+    "recall": 0.9955,
+    "searches": 6463,
+    "searches_with_exact_result": 5336,
+    "underfilled": 0.2284
+   },
+   "dialectic": {
+    "db_ms_median": 36.2595,
+    "db_ms_p95": 235.5908,
+    "fill": 0.6511,
+    "identical_to_exact": 0.7767,
+    "recall": 0.9928,
+    "searches": 305,
+    "searches_with_exact_result": 206,
+    "underfilled": 0.3869
+   },
+   "dialectic_prefetch": {
+    "db_ms_median": 23.5435,
+    "db_ms_p95": 601.7132,
+    "fill": 0.5849,
+    "identical_to_exact": 0.9126,
+    "recall": 0.9969,
+    "searches": 158,
+    "searches_with_exact_result": 103,
+    "underfilled": 0.4367
+   },
+   "dream.deduction": {
+    "db_ms_median": 37.274,
+    "db_ms_p95": 268.7661,
+    "fill": 0.8128,
+    "identical_to_exact": 0.9195,
+    "recall": 0.9946,
+    "searches": 3000,
+    "searches_with_exact_result": 2547,
+    "underfilled": 0.2257
+   },
+   "dream.induction": {
+    "db_ms_median": 52.0002,
+    "db_ms_p95": 262.4003,
+    "fill": 0.8093,
+    "identical_to_exact": 0.9367,
+    "recall": 0.9965,
+    "searches": 3000,
+    "searches_with_exact_result": 2480,
+    "underfilled": 0.204
+   }
+  },
+  "relaxed400": {
+   "all": {
+    "db_ms_median": 37.8971,
+    "db_ms_p95": 655.3066,
+    "fill": 0.7979,
+    "identical_to_exact": 1.0,
+    "recall": 1.0,
+    "searches": 6463,
+    "searches_with_exact_result": 5336,
+    "underfilled": 0.2284
+   },
+   "dialectic": {
+    "db_ms_median": 33.3694,
+    "db_ms_p95": 618.6997,
+    "fill": 0.6511,
+    "identical_to_exact": 1.0,
+    "recall": 1.0,
+    "searches": 305,
+    "searches_with_exact_result": 206,
+    "underfilled": 0.3869
+   },
+   "dialectic_prefetch": {
+    "db_ms_median": 22.5116,
+    "db_ms_p95": 512.9413,
+    "fill": 0.5849,
+    "identical_to_exact": 1.0,
+    "recall": 1.0,
+    "searches": 158,
+    "searches_with_exact_result": 103,
+    "underfilled": 0.4367
+   },
+   "dream.deduction": {
+    "db_ms_median": 33.3203,
+    "db_ms_p95": 643.7636,
+    "fill": 0.8128,
+    "identical_to_exact": 1.0,
+    "recall": 1.0,
+    "searches": 3000,
+    "searches_with_exact_result": 2547,
+    "underfilled": 0.2257
+   },
+   "dream.induction": {
+    "db_ms_median": 53.3575,
+    "db_ms_p95": 668.7058,
+    "fill": 0.8093,
+    "identical_to_exact": 1.0,
+    "recall": 1.0,
+    "searches": 3000,
+    "searches_with_exact_result": 2480,
+    "underfilled": 0.204
+   }
+  },
+  "stock": {
+   "all": {
+    "db_ms_median": 40.1378,
+    "db_ms_p95": 129.4537,
+    "fill": 0.7271,
+    "identical_to_exact": 0.7442,
+    "recall": 0.9011,
+    "searches": 6463,
+    "searches_with_exact_result": 5336,
+    "underfilled": 0.3477
+   },
+   "dialectic": {
+    "db_ms_median": 24.6883,
+    "db_ms_p95": 100.9774,
+    "fill": 0.545,
+    "identical_to_exact": 0.5,
+    "recall": 0.8163,
+    "searches": 305,
+    "searches_with_exact_result": 206,
+    "underfilled": 0.5508
+   },
+   "dialectic_prefetch": {
+    "db_ms_median": 24.935,
+    "db_ms_p95": 106.8082,
+    "fill": 0.4366,
+    "identical_to_exact": 0.6019,
+    "recall": 0.7654,
+    "searches": 158,
+    "searches_with_exact_result": 103,
+    "underfilled": 0.6519
+   },
+   "dream.deduction": {
+    "db_ms_median": 36.5464,
+    "db_ms_p95": 130.0625,
+    "fill": 0.737,
+    "identical_to_exact": 0.7613,
+    "recall": 0.9006,
+    "searches": 3000,
+    "searches_with_exact_result": 2547,
+    "underfilled": 0.358
+   },
+   "dream.induction": {
+    "db_ms_median": 46.8805,
+    "db_ms_p95": 130.7142,
+    "fill": 0.751,
+    "identical_to_exact": 0.7528,
+    "recall": 0.9142,
+    "searches": 3000,
+    "searches_with_exact_result": 2480,
+    "underfilled": 0.3007
+   }
+  }
+ },
+ "earlier_smaller_run": {
+  "fill_and_underfill": {
+   "stock": {
+    "fill": 0.511,
+    "underfilled": 0.566
+   },
+   "strict_order_ef200": {
+    "fill": 0.593,
+    "underfilled": 0.441
+   },
+   "strict_order_ef400": {
+    "fill": 0.593,
+    "underfilled": 0.441
+   }
+  },
+  "note": "Hand-transcribed aggregates from an earlier, smaller replay of 1,063 searches (not recomputed by the published scripts). Recall is against an exact run on a copy of the database without planner statistics; 679 of the 1,063 searches had a non-empty exact result.",
+  "recall_all": {
+   "stock": 0.859,
+   "strict_order_ef200": 0.995,
+   "strict_order_ef400": 1.0
+  },
+  "recall_by_pair_size": {
+   "100-1k": {
+    "searches": 53,
+    "stock": 1.0,
+    "strict_order_ef200": 1.0
+   },
+   "1k-10k": {
+    "searches": 254,
+    "stock": 0.839,
+    "strict_order_ef200": 1.0
+   },
+   "<100": {
+    "searches": 141,
+    "stock": 1.0,
+    "strict_order_ef200": 1.0
+   },
+   ">=10k": {
+    "searches": 231,
+    "stock": 0.763,
+    "strict_order_ef200": 0.984,
+    "strict_order_ef400": 1.0
+   }
+  },
+  "searches": 1063
+ },
+ "exact_underfilled": 0.2284,
+ "scan_modes": "strict_order and relaxed_order gave the same recall to within 0.003 at ef_search 200 and identical recall at 400."
+}

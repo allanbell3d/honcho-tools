@@ -1,0 +1,4 @@
+# Store and check out text as LF on every machine; Windows autocrlf no longer rewrites line endings.
+* text=auto eol=lf
+*.png binary
+*.ico binary

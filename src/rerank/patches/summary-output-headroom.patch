@@ -1,0 +1,120 @@
+diff --git a/config.toml.example b/config.toml.example
+index 0447ec0..1ad02f4 100644
+--- a/config.toml.example
++++ b/config.toml.example
+@@ -211,6 +211,7 @@ MESSAGES_PER_SHORT_SUMMARY = 20
+ MESSAGES_PER_LONG_SUMMARY = 60
+ MAX_TOKENS_SHORT = 1500
+ MAX_TOKENS_LONG = 6000
++OUTPUT_HEADROOM = 1.0  # 1.0 or more; multiplies the output max_tokens only, prompt word targets stay unchanged
+ MAX_INPUT_TOKENS = 100000
+ 
+ [summary.model_config]
+diff --git a/docs/v3/contributing/configuration.mdx b/docs/v3/contributing/configuration.mdx
+index 3a76ac0..fe755f6 100644
+--- a/docs/v3/contributing/configuration.mdx
++++ b/docs/v3/contributing/configuration.mdx
+@@ -511,6 +511,21 @@ SUMMARY_MESSAGES_PER_LONG_SUMMARY=60
+ 
+ `SUMMARY_MAX_INPUT_TOKENS` caps the whole summary prompt: instructions, previous summary and messages. The messages in a summary are chosen by count (`SUMMARY_MESSAGES_PER_*`), so long messages can add up to more than the model accepts. When they do, the oldest messages are left out of that summary, with a warning in the log, and a single message larger than the budget on its own is clipped. Keep it below the context window of the summary model and of its fallback. It must be at least twice the larger of `SUMMARY_MAX_TOKENS_SHORT` and `SUMMARY_MAX_TOKENS_LONG`, because the previous summary is always sent in full and messages need room beside it.
+ 
++**Summary output headroom:**
++
++Models that spend output tokens on reasoning can use up `SUMMARY_MAX_TOKENS_SHORT` or `SUMMARY_MAX_TOKENS_LONG` before the summary is finished. `SUMMARY_OUTPUT_HEADROOM` multiplies only the output limit sent to the model, so a long summary is less likely to be cut off. The length the prompt asks for is unchanged, so this does not request longer summaries. Truncation can still happen, and how much the model writes depends on the model. It defaults to `1.0`, which keeps the stock behavior, and must be `1.0` or more.
++
++```bash
++SUMMARY_OUTPUT_HEADROOM=2.0  # output limit = int(SUMMARY_MAX_TOKENS_SHORT or _LONG * 2.0)
++```
++
++```toml
++[summary]
++OUTPUT_HEADROOM = 2.0
++```
++
++With the defaults above, the short summary limit becomes 3000 tokens and the long one 12000. You pay for the tokens the model writes, not for the limit. Startup validates the multiplied limits: each must stay within `SUMMARY_MODEL_CONFIG__MAX_OUTPUT_TOKENS` when that is set, and `SUMMARY_MAX_INPUT_TOKENS` must be at least twice the larger multiplied limit. Restart the API and the deriver after a change.
++
+ **Dream Processing:**
+ 
+ Dream processing consolidates and refines peer representations during idle periods.
+diff --git a/src/config.py b/src/config.py
+index 322e219..8814f7e 100644
+--- a/src/config.py
++++ b/src/config.py
+@@ -1254,6 +1254,7 @@ class SummarySettings(HonchoSettings):
+     # as headroom so a summary can finish instead of truncating.
+     MAX_TOKENS_SHORT: Annotated[int, Field(default=1500, gt=0, le=10_000)] = 1500
+     MAX_TOKENS_LONG: Annotated[int, Field(default=6000, gt=0, le=20_000)] = 6000
++    OUTPUT_HEADROOM: Annotated[float, Field(ge=1.0, allow_inf_nan=False)] = 1.0
+ 
+     # Input budget for one summary call: prompt, previous summary and messages.
+     # The message window is chosen by count, so long messages can outgrow the
+@@ -1262,16 +1263,20 @@ class SummarySettings(HonchoSettings):
+     # context windows of the configured model and its fallback.
+     MAX_INPUT_TOKENS: Annotated[int, Field(default=100_000, gt=0, le=200_000)] = 100_000
+ 
++    def output_cap(self, name: str) -> int:
++        """The max_tokens a summary request sends: its cap times the headroom."""
++        return int(getattr(self, name) * self.OUTPUT_HEADROOM)
++
+     @model_validator(mode="after")
+     def _validate_caps_within_model_ceiling(self) -> "SummarySettings":
+-        """Keep MODEL_CONFIG.max_output_tokens a ceiling over both summary caps."""
++        """Keep MODEL_CONFIG.max_output_tokens a ceiling over both output caps."""
+         ceiling = self.MODEL_CONFIG.max_output_tokens
+         if ceiling is None:
+             return self
+         for name in ("MAX_TOKENS_SHORT", "MAX_TOKENS_LONG"):
+-            if getattr(self, name) > ceiling:
++            if self.output_cap(name) > ceiling:
+                 raise ValueError(
+-                    f"summary.{name} must not exceed "
++                    f"summary.{name} x summary.OUTPUT_HEADROOM must not exceed "
+                     + "summary.MODEL_CONFIG.max_output_tokens"
+                 )
+         return self
+@@ -1280,15 +1285,18 @@ class SummarySettings(HonchoSettings):
+     def _validate_input_budget_fits_previous_summary(self) -> "SummarySettings":
+         """Leave room for messages after the largest possible previous summary.
+ 
+-        A previous summary is sent in full and can be as long as its cap, which
+-        may be either one. Requiring twice the larger cap leaves at least that
+-        much again for the prompt and messages.
++        A previous summary is sent in full and can be as long as its output cap,
++        which may be either one. Requiring twice the larger output cap leaves at
++        least that much again for the prompt and messages.
+         """
+-        minimum_budget = 2 * max(self.MAX_TOKENS_SHORT, self.MAX_TOKENS_LONG)
++        minimum_budget = 2 * max(
++            self.output_cap("MAX_TOKENS_SHORT"), self.output_cap("MAX_TOKENS_LONG")
++        )
+         if minimum_budget > self.MAX_INPUT_TOKENS:
+             raise ValueError(
+                 "summary.MAX_INPUT_TOKENS must be at least twice the larger of "
+-                + "summary.MAX_TOKENS_SHORT and summary.MAX_TOKENS_LONG"
++                + "summary.MAX_TOKENS_SHORT and summary.MAX_TOKENS_LONG, "
++                + "each times summary.OUTPUT_HEADROOM"
+             )
+         return self
+ 
+diff --git a/src/utils/summarizer.py b/src/utils/summarizer.py
+index 08e5a9c..f341f01 100644
+--- a/src/utils/summarizer.py
++++ b/src/utils/summarizer.py
+@@ -304,7 +304,7 @@ async def create_short_summary(
+     return await honcho_llm_call(
+         model_config=_get_summary_model_config(),
+         prompt=prompt,
+-        max_tokens=settings.SUMMARY.MAX_TOKENS_SHORT,
++        max_tokens=settings.SUMMARY.output_cap("MAX_TOKENS_SHORT"),
+         validate_response=_refuse_degraded_empty_summary(prompt),
+         telemetry=replace(
+             telemetry or LLMTelemetryContext(),
+@@ -341,7 +341,7 @@ async def create_long_summary(
+     return await honcho_llm_call(
+         model_config=_get_summary_model_config(),
+         prompt=prompt,
+-        max_tokens=settings.SUMMARY.MAX_TOKENS_LONG,
++        max_tokens=settings.SUMMARY.output_cap("MAX_TOKENS_LONG"),
+         validate_response=_refuse_degraded_empty_summary(prompt),
+         telemetry=replace(
+             telemetry or LLMTelemetryContext(),

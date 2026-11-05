@@ -1,0 +1,6 @@
+{
+  "_note": "USD per million tokens [input, cached input, output], as recorded in the study's harness when it ran. Check current prices before a paid run.",
+  "haiku": [0.10, 0.10, 0.50],
+  "luna": [0.10, 0.01, 0.50],
+  "deepseek": [0.30, 0.006, 1.20]
+}

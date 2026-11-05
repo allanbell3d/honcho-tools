@@ -1,0 +1,45 @@
+{
+ "note": "Spend-ledger estimates at the list prices recorded in the harness when each run happened, in USD. They are not invoices. A request that failed is charged at its full reservation unless the provider rejected it with a 4xx, so failed rows can overstate cost. Prices change: check your providers before you budget.",
+ "rates_used_usd_per_million_tokens": {
+  "rerank-3-lite": 0.02,
+  "rerank-3": 0.05,
+  "claude-haiku-5-5": {"input": 0.10, "cached_input": 0.10, "output": 0.50},
+  "gpt-6-luna": {"input": 0.10, "cached_input": 0.01, "output": 0.50},
+  "deepseek-flash": {"input": 0.30, "cached_input": 0.006, "output": 1.20},
+  "text-embedding-3-small": 0.02
+ },
+ "study2_three_judge_replay": {
+  "calls_in_sample": 369,
+  "calls_with_complete_grades": 270,
+  "judged_pairs_per_judge": 11908,
+  "ledger_total_usd": 4.7265,
+  "by_provider_model": {
+   "claude-haiku-5-5 (judge)": {"requests": 541, "usd": 0.5991},
+   "gpt-6-luna (judge)": {"requests": 550, "usd": 0.4090},
+   "deepseek-flash (judge)": {"requests": 514, "usd": 3.1963, "rejected_requests_charged_zero": 16},
+   "rerank-3-lite": {"requests": 1020, "ledger_tokens": 7362975, "usd": 0.1473, "failed_requests": 32},
+   "rerank-3": {"requests": 1021, "ledger_tokens": 7495955, "usd": 0.3748, "failed_requests": 31},
+   "text-embedding-3-small": {"requests": 352, "tokens": 4687, "usd": 0.0001}
+  },
+  "note": "Ledger tokens for failed requests are the reserved bound, not billed usage. The first paid judge run for one judge hit HTTP 400 on 16 requests; those were corrected to zero cost in the ledger. DeepSeek's recorded cost is higher than the other two judges' at the recorded rates; the ledger does not break out why."
+ },
+ "study1_conclusion_replay": {
+  "calls": 80,
+  "rerank_requests_in_block_including_message_search": 458,
+  "rerank_ledger_usd_including_message_search": 0.3497,
+  "list_price_usd_per_1000_conclusion_calls": {"rr100": 0.0957, "rr200": 0.1904, "rr300": 0.2843, "rr400": 0.3749},
+  "tokens_per_call": {"rr100": 4783, "rr200": 9522, "rr300": 14216, "rr400": 18746},
+  "labelling": "The 31,663 labels were produced by model-harness grading sessions whose cost was not tracked in the spend ledger, so no labelling cost is reported."
+ },
+ "study3_ef_sweep": {
+  "searches": 6463,
+  "queries_embedded_in_this_study": 6062,
+  "embedding_usd": 0.002,
+  "note": "No other paid request: index settings only."
+ },
+ "study4_ab_dream": {
+  "ledger_total_usd_all_arms_probes_and_judges": 2.11,
+  "judges_usd": 0.27,
+  "note": "Includes one rate-limited first attempt that was re-run. One dream per peer pair per arm, two pairs, five arms."
+ }
+}

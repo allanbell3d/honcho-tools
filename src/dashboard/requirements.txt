@@ -1,0 +1,5 @@
+# Direct packages.
+fastapi
+uvicorn
+jsonschema
+tomlkit

@@ -1,0 +1,72 @@
+# Lines to add to Honcho's own compose file. This file is not a compose project. Do not point
+# `docker compose` at it.
+#
+# This is a one-time change to the Honcho compose. After it, a Honcho upgrade only needs the one
+# source patch re-applied (src/rerank/patches/) and these lines kept. Keep every other setting and
+# mount of the two services.
+#
+# Paths are written as seen from the Honcho compose project (HONCHO_ROOT). That compose reads the
+# Honcho .env, not deploy/.env, so write the host folders of this stack in full where <...> stands:
+#   <CODE_ROOT>   where this repository is checked out
+#   <CONFIG_DIR>  the same host folder as CONFIG_DIR in deploy/.env (settings.json)
+#   <LOGS_DIR>    the same host folder as LOGS_DIR in deploy/.env
+#   <DATA_DIR>    the same host folder as DATA_DIR in deploy/.env
+#   <SECRETS_DIR> the same host folder as SECRETS_DIR in deploy/.env (tokens.env, written by setup.sh)
+#
+# env_file on a service replaces the list it inherits, so it names Honcho's .env again before tokens.env:
+# BRIDGE_TOKEN (sent to the bridge) and TELEMETRY_HEADERS (sent to the telemetry receiver) come from tokens.env,
+# and Honcho's .env stays as it is.
+#
+# Mount the config folder at /config, never settings.json alone: a save is a temp file plus
+# rename, so a file bind keeps the old inode and hot reload never sees the new content.
+# Honcho's own config.toml stays where it is, in the Honcho folder.
+#
+# RERANK_API_KEY lives in the Honcho .env, which both services already load through env_file, so
+# no environment line is needed for it. It is never in settings.json.
+#
+# PGOPTIONS sets the pgvector scan on every database connection. Use the same value on both
+# services: the dashboard reads ef_search from it.
+#
+# The rerank component (src/rerank/honcho_rerank) is not a service. It runs inside these two Honcho
+# processes. With "rerank": {"enabled": false} in settings.json, or no settings.json at all,
+# Honcho's searches are its own, unchanged.
+
+# --- api (Honcho compose), add to the api service ---
+# The rerank entrypoint does what the image's docker/entrypoint.sh does (provision the database,
+# serve src.main:app on port 8000) after installing the rerank component.
+#   entrypoint: ["/app/.venv/bin/python", "-m", "src.honcho_rerank.api_main"]
+#   env_file:
+#     - .env
+#     - <SECRETS_DIR>/tokens.env
+#   environment:
+#     PGOPTIONS: "-c hnsw.iterative_scan=strict_order -c hnsw.ef_search=100"
+#   volumes:
+#     - <CONFIG_DIR>:/config:ro
+#     - <CODE_ROOT>/src/rerank/honcho_rerank:/app/src/honcho_rerank:ro
+
+# --- deriver (Honcho compose), add to the deriver service ---
+# The rerank entrypoint installs the rerank component, then runs the scheduler hook's entrypoint in
+# the same process. Without the rerank package the deriver entrypoint is
+# python /app/policies/deriver_main.py and the dream hook runs without the rerank proxy.
+# The stock entrypoint runs neither.
+# POLICY_LOG and POLICY_STATUS put the hook's policy-used.log, runs.log (beside it) and
+# hook-status.json in LOGS_DIR, where the dashboard reads them. INSTRUCTIONS_DIR is the
+# instructions/ folder of DATA_DIR, which the dashboard edits.
+# Use one of the two entrypoint lines: the first with the reranker (the default), the second for the hook alone.
+#   entrypoint: ["/app/.venv/bin/python", "-m", "src.honcho_rerank.deriver_main", "/app/policies/deriver_main.py"]
+#   entrypoint: ["python", "/app/policies/deriver_main.py"]
+#   env_file:
+#     - .env
+#     - <SECRETS_DIR>/tokens.env
+#   environment:
+#     CONTROL_FILE: /config/settings.json
+#     POLICY_LOG: /logs/policy-used.log
+#     POLICY_STATUS: /logs/hook-status.json
+#     INSTRUCTIONS_DIR: /data/instructions
+#     PGOPTIONS: "-c hnsw.iterative_scan=strict_order -c hnsw.ef_search=100"
+#   volumes:
+#     - <CONFIG_DIR>:/config:ro
+#     - <CODE_ROOT>/src/hooks:/app/policies:ro
+#     - <CODE_ROOT>/src/rerank/honcho_rerank:/app/src/honcho_rerank:ro
+#     - <LOGS_DIR>:/logs
+#     - <DATA_DIR>/instructions:/data/instructions:ro

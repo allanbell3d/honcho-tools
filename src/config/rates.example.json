@@ -1,0 +1,837 @@
+{
+  "_verified_on": "2026-11-05",
+  "_currency": "USD",
+  "_basis": "Current public standard list prices, not invoices. Discounts, credits, historical price changes and negotiated rates are not applied. Missing models remain unknown. Models used over both API and CLI are not classified as subscriptions by model name. Tiered prices beyond the modelled tier, and audio, batch, priority and regional prices, are not applied.",
+  "_sources": {
+    "openai": "https://developers.openai.com/api/docs/pricing",
+    "anthropic": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "google": "https://aistudio.google.com/docs/pricing",
+    "deepseek": "https://api-docs.deepseek.com/quick_start/pricing/",
+    "xai": "https://docs.x.ai/docs/models",
+    "mistral": "https://docs.mistral.ai/inference/pricing",
+    "qwen": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+    "zai": "https://docs.z.ai/guides/overview/pricing",
+    "moonshot": "https://platform.kimi.ai/docs/pricing/chat",
+    "voyage": "https://docs.voyageai.com/docs/pricing"
+  },
+  "llm": {
+    "claude-haiku-5-5": {
+      "input_per_million": 0.1,
+      "output_per_million": 0.5,
+      "cache_read_per_million": 0.01,
+      "cache_creation_per_million": 0.125,
+      "estimate_note": "standard API rates; cache writes assume 5-minute TTL",
+      "long_context": {
+        "above_input_tokens": 100000,
+        "rates": {
+          "input_per_million": 0.5,
+          "output_per_million": 2.5,
+          "cache_read_per_million": 0.05,
+          "cache_creation_per_million": 0.625
+        }
+      }
+    },
+    "deepseek-flash": {
+      "input_per_million": 0.3,
+      "output_per_million": 1.2,
+      "cache_read_per_million": 0.006,
+      "peak_utc": [
+        "01:00-04:00",
+        "06:00-10:00"
+      ],
+      "peak_days": "Mon-Fri",
+      "off_peak_factor": 0.5,
+      "estimate_note": "Peak list rates inside 01:00-04:00 and 06:00-10:00 UTC, Monday to Friday; half outside those windows. Chinese public holidays are off-peak and are not modeled."
+    },
+    "gpt-6-astra": {
+      "input_per_million": 10,
+      "output_per_million": 50,
+      "cache_read_per_million": 1,
+      "long_context": {
+        "above_input_tokens": 272000,
+        "rates": {
+          "input_per_million": 20,
+          "output_per_million": 75.0,
+          "cache_read_per_million": 2
+        }
+      },
+      "estimate_note": "Standard tier; prompts above 272K input tokens use the long-context rates"
+    },
+    "gpt-6.1-sol": {
+      "input_per_million": 2,
+      "output_per_million": 10,
+      "cache_read_per_million": 0.1,
+      "long_context": {
+        "above_input_tokens": 272000,
+        "rates": {
+          "input_per_million": 4,
+          "output_per_million": 15.0,
+          "cache_read_per_million": 0.2
+        }
+      },
+      "estimate_note": "Standard tier; prompts above 272K input tokens use the long-context rates"
+    },
+    "gpt-6.1-terra": {
+      "input_per_million": 1,
+      "output_per_million": 5,
+      "cache_read_per_million": 0.05,
+      "long_context": {
+        "above_input_tokens": 272000,
+        "rates": {
+          "input_per_million": 2,
+          "output_per_million": 7.5,
+          "cache_read_per_million": 0.1
+        }
+      },
+      "estimate_note": "Standard tier; prompts above 272K input tokens use the long-context rates"
+    },
+    "gpt-6-luna": {
+      "input_per_million": 0.1,
+      "output_per_million": 0.5,
+      "cache_read_per_million": 0.01,
+      "long_context": {
+        "above_input_tokens": 272000,
+        "rates": {
+          "input_per_million": 0.2,
+          "output_per_million": 0.75,
+          "cache_read_per_million": 0.02
+        }
+      },
+      "estimate_note": "Standard tier; prompts above 272K input tokens use the long-context rates"
+    },
+    "gpt-6-sol": {
+      "input_per_million": 2,
+      "output_per_million": 10,
+      "cache_read_per_million": 0.2,
+      "long_context": {
+        "above_input_tokens": 272000,
+        "rates": {
+          "input_per_million": 4,
+          "output_per_million": 15.0,
+          "cache_read_per_million": 0.4
+        }
+      },
+      "estimate_note": "Standard tier; prompts above 272K input tokens use the long-context rates"
+    },
+    "gpt-5.6-sol": {
+      "input_per_million": 4,
+      "output_per_million": 20,
+      "cache_read_per_million": 0.4,
+      "long_context": {
+        "above_input_tokens": 272000,
+        "rates": {
+          "input_per_million": 8,
+          "output_per_million": 30.0,
+          "cache_read_per_million": 0.8
+        }
+      },
+      "estimate_note": "Standard tier; prompts above 272K input tokens use the long-context rates"
+    },
+    "gpt-5.6-terra": {
+      "input_per_million": 2,
+      "output_per_million": 12,
+      "cache_read_per_million": 0.2,
+      "long_context": {
+        "above_input_tokens": 272000,
+        "rates": {
+          "input_per_million": 4,
+          "output_per_million": 18.0,
+          "cache_read_per_million": 0.4
+        }
+      },
+      "estimate_note": "Standard tier; prompts above 272K input tokens use the long-context rates"
+    },
+    "gpt-5.6-luna": {
+      "input_per_million": 0.2,
+      "output_per_million": 1.2,
+      "cache_read_per_million": 0.02,
+      "long_context": {
+        "above_input_tokens": 272000,
+        "rates": {
+          "input_per_million": 0.4,
+          "output_per_million": 1.7999999999999998,
+          "cache_read_per_million": 0.04
+        }
+      },
+      "estimate_note": "Standard tier; prompts above 272K input tokens use the long-context rates"
+    },
+    "gpt-5.5": {
+      "input_per_million": 5,
+      "output_per_million": 30,
+      "cache_read_per_million": 0.5,
+      "long_context": {
+        "above_input_tokens": 272000,
+        "rates": {
+          "input_per_million": 10,
+          "output_per_million": 45.0,
+          "cache_read_per_million": 1.0
+        }
+      },
+      "estimate_note": "Standard tier; prompts above 272K input tokens use the long-context rates"
+    },
+    "gpt-5.4": {
+      "input_per_million": 2.5,
+      "output_per_million": 15,
+      "cache_read_per_million": 0.25,
+      "long_context": {
+        "above_input_tokens": 272000,
+        "rates": {
+          "input_per_million": 5.0,
+          "output_per_million": 22.5,
+          "cache_read_per_million": 0.5
+        }
+      },
+      "estimate_note": "Standard tier; prompts above 272K input tokens use the long-context rates"
+    },
+    "gpt-5.4-mini": {
+      "input_per_million": 0.75,
+      "output_per_million": 4.5,
+      "cache_read_per_million": 0.075,
+      "estimate_note": "Standard tier"
+    },
+    "gpt-5.4-nano": {
+      "input_per_million": 0.2,
+      "output_per_million": 1.25,
+      "cache_read_per_million": 0.02,
+      "estimate_note": "Standard tier"
+    },
+    "gpt-5.2": {
+      "input_per_million": 1.75,
+      "output_per_million": 14,
+      "cache_read_per_million": 0.175,
+      "estimate_note": "Standard tier"
+    },
+    "gpt-5.1": {
+      "input_per_million": 1.25,
+      "output_per_million": 10,
+      "cache_read_per_million": 0.125,
+      "estimate_note": "Standard tier"
+    },
+    "gpt-5": {
+      "input_per_million": 1.25,
+      "output_per_million": 10,
+      "cache_read_per_million": 0.125,
+      "estimate_note": "Standard tier"
+    },
+    "gpt-5-mini": {
+      "input_per_million": 0.25,
+      "output_per_million": 2,
+      "cache_read_per_million": 0.025,
+      "estimate_note": "Standard tier"
+    },
+    "gpt-5-nano": {
+      "input_per_million": 0.05,
+      "output_per_million": 0.4,
+      "cache_read_per_million": 0.005,
+      "estimate_note": "Standard tier"
+    },
+    "gpt-4.1": {
+      "input_per_million": 2,
+      "output_per_million": 8,
+      "cache_read_per_million": 0.5,
+      "estimate_note": "Standard tier"
+    },
+    "gpt-4.1-mini": {
+      "input_per_million": 0.4,
+      "output_per_million": 1.6,
+      "cache_read_per_million": 0.1,
+      "estimate_note": "Standard tier"
+    },
+    "gpt-4o": {
+      "input_per_million": 2.5,
+      "output_per_million": 10,
+      "cache_read_per_million": 1.25,
+      "estimate_note": "Standard tier"
+    },
+    "gpt-4o-mini": {
+      "input_per_million": 0.15,
+      "output_per_million": 0.6,
+      "cache_read_per_million": 0.075,
+      "estimate_note": "Standard tier"
+    },
+    "o3": {
+      "input_per_million": 2,
+      "output_per_million": 8,
+      "cache_read_per_million": 0.5,
+      "estimate_note": "Standard tier"
+    },
+    "gpt-5.5-pro": {
+      "input_per_million": 30,
+      "output_per_million": 180,
+      "long_context": {
+        "above_input_tokens": 272000,
+        "rates": {
+          "input_per_million": 60,
+          "output_per_million": 270
+        }
+      },
+      "estimate_note": "Standard tier; Responses API; prompts above 272K input tokens use the long-context rates"
+    },
+    "gpt-5.4-pro": {
+      "input_per_million": 30,
+      "output_per_million": 180,
+      "long_context": {
+        "above_input_tokens": 272000,
+        "rates": {
+          "input_per_million": 60,
+          "output_per_million": 270
+        }
+      },
+      "estimate_note": "Standard tier; Responses API; prompts above 272K input tokens use the long-context rates"
+    },
+    "gpt-5.2-pro": {
+      "input_per_million": 21,
+      "output_per_million": 168,
+      "estimate_note": "Standard tier; Responses API"
+    },
+    "gpt-5-pro": {
+      "input_per_million": 15,
+      "output_per_million": 120,
+      "estimate_note": "Standard tier; Responses API"
+    },
+    "o3-pro": {
+      "input_per_million": 20,
+      "output_per_million": 80,
+      "estimate_note": "Standard tier; Responses API"
+    },
+    "claude-fable-5-1": {
+      "input_per_million": 10,
+      "output_per_million": 50,
+      "cache_read_per_million": 0.25,
+      "cache_creation_per_million": 12.5,
+      "estimate_note": "standard API rates; cache writes assume 5-minute TTL"
+    },
+    "claude-opus-5-5": {
+      "input_per_million": 4,
+      "output_per_million": 20,
+      "cache_read_per_million": 0.2,
+      "cache_creation_per_million": 5,
+      "estimate_note": "standard API rates; cache writes assume 5-minute TTL"
+    },
+    "claude-sonnet-5-5": {
+      "input_per_million": 2,
+      "output_per_million": 10,
+      "cache_read_per_million": 0.1,
+      "cache_creation_per_million": 2.5,
+      "estimate_note": "standard API rates; cache writes assume 5-minute TTL"
+    },
+    "claude-fable-5": {
+      "input_per_million": 10,
+      "output_per_million": 50,
+      "cache_read_per_million": 1,
+      "cache_creation_per_million": 12.5,
+      "estimate_note": "standard API rates; cache writes assume 5-minute TTL"
+    },
+    "claude-opus-5": {
+      "input_per_million": 5,
+      "output_per_million": 25,
+      "cache_read_per_million": 0.5,
+      "cache_creation_per_million": 6.25,
+      "estimate_note": "standard API rates; cache writes assume 5-minute TTL"
+    },
+    "claude-opus-4-8": {
+      "input_per_million": 5,
+      "output_per_million": 25,
+      "cache_read_per_million": 0.5,
+      "cache_creation_per_million": 6.25,
+      "estimate_note": "standard API rates; cache writes assume 5-minute TTL"
+    },
+    "claude-opus-4-7": {
+      "input_per_million": 5,
+      "output_per_million": 25,
+      "cache_read_per_million": 0.5,
+      "cache_creation_per_million": 6.25,
+      "estimate_note": "standard API rates; cache writes assume 5-minute TTL"
+    },
+    "claude-opus-4-6": {
+      "input_per_million": 5,
+      "output_per_million": 25,
+      "cache_read_per_million": 0.5,
+      "cache_creation_per_million": 6.25,
+      "estimate_note": "standard API rates; cache writes assume 5-minute TTL"
+    },
+    "claude-opus-4-5": {
+      "input_per_million": 5,
+      "output_per_million": 25,
+      "cache_read_per_million": 0.5,
+      "cache_creation_per_million": 6.25,
+      "estimate_note": "standard API rates; cache writes assume 5-minute TTL"
+    },
+    "claude-sonnet-5": {
+      "input_per_million": 2,
+      "output_per_million": 10,
+      "cache_read_per_million": 0.2,
+      "cache_creation_per_million": 2.5,
+      "estimate_note": "standard API rates; cache writes assume 5-minute TTL"
+    },
+    "claude-sonnet-4-6": {
+      "input_per_million": 3,
+      "output_per_million": 15,
+      "cache_read_per_million": 0.3,
+      "cache_creation_per_million": 3.75,
+      "estimate_note": "standard API rates; cache writes assume 5-minute TTL"
+    },
+    "claude-sonnet-4-5": {
+      "input_per_million": 3,
+      "output_per_million": 15,
+      "cache_read_per_million": 0.3,
+      "cache_creation_per_million": 3.75,
+      "estimate_note": "standard API rates; cache writes assume 5-minute TTL"
+    },
+    "claude-haiku-4-5": {
+      "input_per_million": 1,
+      "output_per_million": 5,
+      "cache_read_per_million": 0.1,
+      "cache_creation_per_million": 1.25,
+      "estimate_note": "standard API rates; cache writes assume 5-minute TTL"
+    },
+    "gemini-4-argon": {
+      "input_per_million": 2,
+      "output_per_million": 10,
+      "cache_read_per_million": 0.1,
+      "estimate_note": "Gemini API paid tier; the price doubles from 2026-12-01 and that is not applied"
+    },
+    "gemini-3.8-flash": {
+      "input_per_million": 0.75,
+      "output_per_million": 3.75,
+      "cache_read_per_million": 0.075,
+      "estimate_note": "Gemini API paid tier; the price doubles from 2027-01-01 and that is not applied"
+    },
+    "gemini-3.6-flash": {
+      "input_per_million": 0.75,
+      "output_per_million": 3.75,
+      "cache_read_per_million": 0.075,
+      "estimate_note": "Gemini API paid tier; the price doubles from 2027-01-01 and that is not applied"
+    },
+    "gemini-3.5-flash-lite": {
+      "input_per_million": 0.3,
+      "output_per_million": 2.5,
+      "cache_read_per_million": 0.03,
+      "estimate_note": "Vertex global and Gemini API paid tier share these rates; excludes cache storage and regional premiums"
+    },
+    "gemini-3.1-flash-lite": {
+      "input_per_million": 0.25,
+      "output_per_million": 1.5,
+      "cache_read_per_million": 0.025,
+      "estimate_note": "Gemini API paid tier, text prices; audio input differs and is not applied"
+    },
+    "gemini-3.1-pro-preview": {
+      "input_per_million": 2,
+      "output_per_million": 12,
+      "cache_read_per_million": 0.2,
+      "long_context": {
+        "above_input_tokens": 200000,
+        "rates": {
+          "input_per_million": 4,
+          "output_per_million": 18,
+          "cache_read_per_million": 0.4
+        }
+      },
+      "estimate_note": "Gemini API paid tier; prompts above 200K input tokens use the long-context rates"
+    },
+    "gemini-3-flash-preview": {
+      "input_per_million": 0.5,
+      "output_per_million": 3,
+      "cache_read_per_million": 0.05,
+      "estimate_note": "Gemini API paid tier, text prices; audio input differs and is not applied"
+    },
+    "gemini-2.5-pro": {
+      "input_per_million": 1.25,
+      "output_per_million": 10,
+      "cache_read_per_million": 0.125,
+      "long_context": {
+        "above_input_tokens": 200000,
+        "rates": {
+          "input_per_million": 2.5,
+          "output_per_million": 15,
+          "cache_read_per_million": 0.25
+        }
+      },
+      "estimate_note": "Gemini API paid tier; prompts above 200K input tokens use the long-context rates"
+    },
+    "gemini-2.5-flash": {
+      "input_per_million": 0.3,
+      "output_per_million": 2.5,
+      "cache_read_per_million": 0.03,
+      "estimate_note": "Gemini API paid tier, text prices; audio input differs and is not applied"
+    },
+    "gemini-2.5-flash-lite": {
+      "input_per_million": 0.1,
+      "output_per_million": 0.4,
+      "cache_read_per_million": 0.01,
+      "estimate_note": "Gemini API paid tier, text prices; audio input differs and is not applied"
+    },
+    "deepseek-v4-pro": {
+      "input_per_million": 1.32,
+      "output_per_million": 3.96,
+      "cache_read_per_million": 0.044,
+      "peak_utc": [
+        "01:00-04:00",
+        "06:00-10:00"
+      ],
+      "peak_days": "Mon-Fri",
+      "off_peak_factor": 0.5,
+      "estimate_note": "Peak list rates inside 01:00-04:00 and 06:00-10:00 UTC, Monday to Friday; half outside those windows. Chinese public holidays are off-peak and are not modeled."
+    },
+    "grok-4.7": {
+      "input_per_million": 2,
+      "output_per_million": 6,
+      "cache_read_per_million": 0.5,
+      "long_context": {
+        "above_input_tokens": 199999,
+        "rates": {
+          "input_per_million": 4,
+          "output_per_million": 12,
+          "cache_read_per_million": 1.0
+        }
+      },
+      "estimate_note": "Prompts of 200K input tokens or more use the long-context rates"
+    },
+    "grok-4.6": {
+      "input_per_million": 2,
+      "output_per_million": 6,
+      "cache_read_per_million": 0.5,
+      "long_context": {
+        "above_input_tokens": 199999,
+        "rates": {
+          "input_per_million": 4,
+          "output_per_million": 12,
+          "cache_read_per_million": 1.0
+        }
+      },
+      "estimate_note": "Prompts of 200K input tokens or more use the long-context rates"
+    },
+    "grok-4.5": {
+      "input_per_million": 2,
+      "output_per_million": 6,
+      "cache_read_per_million": 0.3,
+      "long_context": {
+        "above_input_tokens": 199999,
+        "rates": {
+          "input_per_million": 4,
+          "output_per_million": 12,
+          "cache_read_per_million": 0.6
+        }
+      },
+      "estimate_note": "Prompts of 200K input tokens or more use the long-context rates"
+    },
+    "grok-4.3": {
+      "input_per_million": 1.25,
+      "output_per_million": 2.5,
+      "cache_read_per_million": 0.2,
+      "long_context": {
+        "above_input_tokens": 199999,
+        "rates": {
+          "input_per_million": 2.5,
+          "output_per_million": 5.0,
+          "cache_read_per_million": 0.4
+        }
+      },
+      "estimate_note": "Prompts of 200K input tokens or more use the long-context rates"
+    },
+    "grok-4.20-0309-reasoning": {
+      "input_per_million": 1.25,
+      "output_per_million": 2.5,
+      "cache_read_per_million": 0.2,
+      "long_context": {
+        "above_input_tokens": 199999,
+        "rates": {
+          "input_per_million": 2.5,
+          "output_per_million": 5.0,
+          "cache_read_per_million": 0.4
+        }
+      },
+      "estimate_note": "Prompts of 200K input tokens or more use the long-context rates"
+    },
+    "grok-4.20-0309-non-reasoning": {
+      "input_per_million": 1.25,
+      "output_per_million": 2.5,
+      "cache_read_per_million": 0.2,
+      "long_context": {
+        "above_input_tokens": 199999,
+        "rates": {
+          "input_per_million": 2.5,
+          "output_per_million": 5.0,
+          "cache_read_per_million": 0.4
+        }
+      },
+      "estimate_note": "Prompts of 200K input tokens or more use the long-context rates"
+    },
+    "grok-build-0.1": {
+      "input_per_million": 1,
+      "output_per_million": 2,
+      "cache_read_per_million": 0.2,
+      "long_context": {
+        "above_input_tokens": 199999,
+        "rates": {
+          "input_per_million": 2,
+          "output_per_million": 4,
+          "cache_read_per_million": 0.4
+        }
+      },
+      "estimate_note": "Prompts of 200K input tokens or more use the long-context rates"
+    },
+    "mistral-large-4": {
+      "input_per_million": 0.7,
+      "output_per_million": 2.1,
+      "cache_read_per_million": 0.07,
+      "estimate_note": "Standard (not batch or priority) USD rates"
+    },
+    "mistral-small-2603": {
+      "input_per_million": 0.15,
+      "output_per_million": 0.6,
+      "cache_read_per_million": 0.015,
+      "estimate_note": "Standard (not batch or priority) USD rates"
+    },
+    "ministral-14b-2512": {
+      "input_per_million": 0.2,
+      "output_per_million": 0.2,
+      "cache_read_per_million": 0.02,
+      "estimate_note": "Standard (not batch or priority) USD rates"
+    },
+    "ministral-8b-2512": {
+      "input_per_million": 0.15,
+      "output_per_million": 0.15,
+      "cache_read_per_million": 0.015,
+      "estimate_note": "Standard (not batch or priority) USD rates"
+    },
+    "ministral-3b-2512": {
+      "input_per_million": 0.1,
+      "output_per_million": 0.1,
+      "cache_read_per_million": 0.01,
+      "estimate_note": "Standard (not batch or priority) USD rates"
+    },
+    "codestral-2508": {
+      "input_per_million": 0.3,
+      "output_per_million": 0.9,
+      "cache_read_per_million": 0.03,
+      "estimate_note": "Standard (not batch or priority) USD rates"
+    },
+    "qwen3.8-max": {
+      "input_per_million": 2,
+      "output_per_million": 6,
+      "estimate_note": "Singapore list rates, lowest input tier; higher input tiers and cache prices are not applied"
+    },
+    "qwen3.7-max": {
+      "input_per_million": 2.5,
+      "output_per_million": 7.5,
+      "estimate_note": "Singapore list rates, lowest input tier; higher input tiers and cache prices are not applied"
+    },
+    "qwen-max": {
+      "input_per_million": 1.6,
+      "output_per_million": 6.4,
+      "estimate_note": "Singapore list rates, lowest input tier; higher input tiers and cache prices are not applied"
+    },
+    "qwen3.7-plus": {
+      "input_per_million": 0.4,
+      "output_per_million": 1.6,
+      "estimate_note": "Singapore list rates, lowest input tier; higher input tiers and cache prices are not applied"
+    },
+    "qwen3.6-plus": {
+      "input_per_million": 0.5,
+      "output_per_million": 3,
+      "estimate_note": "Singapore list rates, lowest input tier; higher input tiers and cache prices are not applied"
+    },
+    "qwen3.5-plus": {
+      "input_per_million": 0.4,
+      "output_per_million": 2.4,
+      "estimate_note": "Singapore list rates, lowest input tier; higher input tiers and cache prices are not applied"
+    },
+    "qwen3.8-flash": {
+      "input_per_million": 0.15,
+      "output_per_million": 0.47,
+      "estimate_note": "Singapore list rates, lowest input tier; higher input tiers and cache prices are not applied"
+    },
+    "qwen3.7-flash": {
+      "input_per_million": 0.03,
+      "output_per_million": 0.13,
+      "estimate_note": "Singapore list rates, lowest input tier; higher input tiers and cache prices are not applied"
+    },
+    "qwen3.6-flash": {
+      "input_per_million": 0.25,
+      "output_per_million": 1.5,
+      "estimate_note": "Singapore list rates, lowest input tier; higher input tiers and cache prices are not applied"
+    },
+    "qwen3.5-flash": {
+      "input_per_million": 0.1,
+      "output_per_million": 0.4,
+      "estimate_note": "Singapore list rates, lowest input tier; higher input tiers and cache prices are not applied"
+    },
+    "qwen-flash": {
+      "input_per_million": 0.05,
+      "output_per_million": 0.4,
+      "estimate_note": "Singapore list rates, lowest input tier; higher input tiers and cache prices are not applied"
+    },
+    "qwen-plus": {
+      "input_per_million": 0.4,
+      "output_per_million": 1.2,
+      "estimate_note": "Singapore list rates, non-thinking mode, lowest input tier; thinking mode output is 4 per million and is not applied; higher input tiers and cache prices are not applied"
+    },
+    "glm-5.3": {
+      "input_per_million": 1.4,
+      "output_per_million": 4.4,
+      "cache_read_per_million": 0.26,
+      "estimate_note": "standard API rates"
+    },
+    "glm-5.3-flash": {
+      "input_per_million": 0.15,
+      "output_per_million": 0.5,
+      "cache_read_per_million": 0.03,
+      "estimate_note": "standard API rates"
+    },
+    "glm-5.3-flashx": {
+      "input_per_million": 0.37,
+      "output_per_million": 1.25,
+      "cache_read_per_million": 0.075,
+      "estimate_note": "standard API rates"
+    },
+    "glm-5.2": {
+      "input_per_million": 1.4,
+      "output_per_million": 4.4,
+      "cache_read_per_million": 0.26,
+      "estimate_note": "standard API rates"
+    },
+    "glm-5.1": {
+      "input_per_million": 1.4,
+      "output_per_million": 4.4,
+      "cache_read_per_million": 0.26,
+      "estimate_note": "standard API rates"
+    },
+    "glm-5": {
+      "input_per_million": 1,
+      "output_per_million": 3.2,
+      "cache_read_per_million": 0.2,
+      "estimate_note": "standard API rates"
+    },
+    "glm-4.7": {
+      "input_per_million": 0.6,
+      "output_per_million": 2.2,
+      "cache_read_per_million": 0.11,
+      "estimate_note": "standard API rates"
+    },
+    "glm-4.6": {
+      "input_per_million": 0.6,
+      "output_per_million": 2.2,
+      "cache_read_per_million": 0.11,
+      "estimate_note": "standard API rates"
+    },
+    "glm-4.5": {
+      "input_per_million": 0.6,
+      "output_per_million": 2.2,
+      "cache_read_per_million": 0.11,
+      "estimate_note": "standard API rates"
+    },
+    "glm-4.7-flashx": {
+      "input_per_million": 0.07,
+      "output_per_million": 0.4,
+      "cache_read_per_million": 0.01,
+      "estimate_note": "standard API rates"
+    },
+    "glm-4.5-air": {
+      "input_per_million": 0.2,
+      "output_per_million": 1.1,
+      "cache_read_per_million": 0.03,
+      "estimate_note": "standard API rates"
+    },
+    "glm-4.5-x": {
+      "input_per_million": 2.2,
+      "output_per_million": 8.9,
+      "cache_read_per_million": 0.45,
+      "estimate_note": "standard API rates"
+    },
+    "glm-4.5-airx": {
+      "input_per_million": 1.1,
+      "output_per_million": 4.5,
+      "cache_read_per_million": 0.22,
+      "estimate_note": "standard API rates"
+    },
+    "glm-4.7-flash": {
+      "input_per_million": 0,
+      "output_per_million": 0,
+      "cache_read_per_million": 0,
+      "estimate_note": "free of charge"
+    },
+    "glm-4.5-flash": {
+      "input_per_million": 0,
+      "output_per_million": 0,
+      "cache_read_per_million": 0,
+      "estimate_note": "free of charge"
+    },
+    "glm-4-32b-0414-128k": {
+      "input_per_million": 0.1,
+      "output_per_million": 0.1,
+      "estimate_note": "standard API rates; no cached-input price listed"
+    },
+    "kimi-k3.1-pro": {
+      "input_per_million": 2,
+      "output_per_million": 10,
+      "cache_read_per_million": 0.2,
+      "estimate_note": "standard API rates"
+    },
+    "kimi-k3.1-pro-highspeed": {
+      "input_per_million": 4,
+      "output_per_million": 20,
+      "cache_read_per_million": 0.2,
+      "estimate_note": "standard API rates"
+    },
+    "kimi-k3": {
+      "input_per_million": 3,
+      "output_per_million": 15,
+      "cache_read_per_million": 0.3,
+      "estimate_note": "standard API rates"
+    },
+    "kimi-k2.7-code": {
+      "input_per_million": 0.95,
+      "output_per_million": 4,
+      "cache_read_per_million": 0.19,
+      "estimate_note": "standard API rates; K2 models are retired by the end of December 2026"
+    },
+    "kimi-k2.7-code-highspeed": {
+      "input_per_million": 1.9,
+      "output_per_million": 8,
+      "cache_read_per_million": 0.38,
+      "estimate_note": "standard API rates; K2 models are retired by the end of December 2026"
+    },
+    "kimi-k2.6": {
+      "input_per_million": 0.95,
+      "output_per_million": 4,
+      "cache_read_per_million": 0.16,
+      "estimate_note": "standard API rates; K2 models are retired by the end of December 2026"
+    }
+  },
+  "rerank": {
+    "voyage/rerank-3": {
+      "per_million_tokens": 0.05,
+      "estimate_note": "list rate before free-token credits"
+    },
+    "voyage/rerank-3-lite": {
+      "per_million_tokens": 0.02,
+      "estimate_note": "list rate before free-token credits"
+    },
+    "voyage/rerank-2.5": {
+      "per_million_tokens": 0.05,
+      "estimate_note": "list rate before free-token credits"
+    },
+    "voyage/rerank-2.5-lite": {
+      "per_million_tokens": 0.02,
+      "estimate_note": "list rate before free-token credits"
+    },
+    "voyage/rerank-2": {
+      "per_million_tokens": 0.05,
+      "estimate_note": "list rate before free-token credits"
+    },
+    "voyage/rerank-2-lite": {
+      "per_million_tokens": 0.02,
+      "estimate_note": "list rate before free-token credits"
+    },
+    "voyage/rerank-1": {
+      "per_million_tokens": 0.05,
+      "estimate_note": "list rate before free-token credits"
+    },
+    "voyage/rerank-lite-1": {
+      "per_million_tokens": 0.02,
+      "estimate_note": "list rate before free-token credits"
+    }
+  },
+  "cli": {}
+}

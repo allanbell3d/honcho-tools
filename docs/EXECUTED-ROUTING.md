@@ -1,0 +1,19 @@
+# Executed models and billing routes
+
+The Models page configures where calls should go. Runs shows, separately, the model, backend and billing route observed in completed-call telemetry. A configured fallback is not proof that it handled a call. A stage alias such as `@dream.deduction` is resolved by the bridge for that request.
+
+The bridge returns `usage.backend`, `usage.resolved_model`, `usage.upstream_model` when reported by the provider, and `usage.billing_route` (`api` or `cli`). Its response model is the upstream model where available, otherwise the selected model. This identifies the connection actually invoked without exposing endpoints or credentials.
+
+The mounted `honcho_rerank.routing_telemetry` extension is installed by both existing API and deriver entrypoints. It preserves response evidence across Honcho 3.5's normalization and enriches both `llm.call.completed` and `llm.call.traced`. The fields are `model`, `requested_model`, `resolved_model`, `backend`, `billing_route`, `routing_evidence`, and, for streams, `usage_complete`. The same events reach the telemetry receiver's archive and any viewer it forwards to (`VIEWER_URL`). Direct Anthropic/Gemini transports are API routes. An unidentified OpenAI-compatible relay stays unknown.
+
+Each ordinary call and stream has isolated context. Streaming SDK usage is captured before Honcho drops input/cache counts; a final usage chunk supplies complete accounting. Missing final usage is explicitly incomplete and unpriced. Context is restored before yielding output and on close/cancellation; cached SDK clients are not modified. No extra telemetry queue, historical replay, or unbounded file fanout is added.
+
+Cost uses the observed model's rate first. If its upstream version name has no rate, only a response-proven bridge `resolved_model` may supply the pricing alias, with a visible note. Current settings never identify historical calls. Old `stage-route` entries remain unknown; Honcho native transport historical calls can be classified as API from their recorded transport. Token totals, sampling and rate assumptions still limit list-price estimates.
+
+`GET /api/bridge-status` reads only bridge connections already configured under Honcho's dream model overrides. Its bounded health requests return counters, bounded last-call route evidence, settings health and log-write health. URLs, keys, raw provider errors and prompts are excluded. There is no arbitrary-target parameter. `log_write_errors` counts failures; the current log-write state is reported separately. Source changes need bridge/API/deriver restarts; model choices remain hot where aliases are already set up.
+
+Verify locally with `python -B -m pytest tests -q -p no:cacheprovider`. `tests/test_routing_telemetry.py` exercises both event streams, concurrent streams, early close, missing usage, Honcho native transports and idempotent installation. The separate `src/rerank/tests` suite requires a Honcho checkout and its dependencies, as described in `src/rerank/README.md`.
+
+To deploy a change, keep a copy of the source you replace, copy the bridge, dashboard and runtime module and entrypoints, wait for an empty work queue, then restart the bridge, API, deriver and dashboard. Check the new response evidence in the telemetry archive. Do not claim model execution solely from the configuration or infer a historical model from today's selected stage.
+
+When `LOGS_DIR` is on a share whose writes are limited to one group, `BRIDGE_LOG_GID` adds that group to the bridge without changing its node UID. Check the group and its permissions before setting the numeric GID; a compose recreate is required, not merely a restart. Verify a real call, read the resulting file and inspect `log_ok`/`log_write_errors`. On a network share a size lookup right after a write can be stale; read the file before concluding the append failed.

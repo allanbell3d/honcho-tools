@@ -1,0 +1,5 @@
+{
+  "_note": "USD per million tokens, as recorded in the study's harness when it ran. Prices change: check your providers before you budget. Keys are the model names used in your --arms (rerank) or the judge names (judge.py: [input, cached input, output]).",
+  "rerank-3-lite": 0.02,
+  "rerank-3": 0.05
+}

@@ -1,0 +1,142 @@
+{
+  "_help": "Single live behaviour file. Re-read on change by the hook, scheduler, bridge and dashboard. No secrets: a backend names an env var (key_env). Lookup is pairs[observer/observed], then peers[observer], then peers[observed], then defaults; defaults start on Honcho's shipped values (brief 50, deduction 12 and induction 10 rounds; no effort, so the model's own default). A pair of {} inherits defaults. mode stock: Honcho dreams on its own and the scheduler sleeps. mode scheduler: only dreams marked by the scheduler run. rerank (top level) holds the rerank component's settings, off unless enabled is true; rerank in defaults, a peer or a pair replaces some of those keys for one dream; never an api_key. providers.stages starts empty: Route all (dashboard, Honcho config) fills each job's stage with the model config.toml gives it, so routing changes no model (on a stock Honcho, OpenAI gpt-5.4-mini through the openai backend and Honcho's own LLM_OPENAI_API_KEY); providers.active, the dreams fallback, is that stock model. A providers.stages value is backend:model, or an object with model (backend:model) and effort.",
+  "mode": "stock",
+  "scheduler": {
+    "poll_seconds": 15,
+    "max_parallel": 2,
+    "dream_type": "omni",
+    "skip": []
+  },
+  "providers": {
+    "active": "openai",
+    "concurrency": 10,
+    "timeout_seconds": 570,
+    "stages": {},
+    "backends": {
+      "openai": {
+        "kind": "openai-compat",
+        "base_url": "https://api.openai.com/v1",
+        "key_env": "LLM_OPENAI_API_KEY",
+        "model": "gpt-5.4-mini",
+        "enabled": true
+      },
+      "codex": {
+        "kind": "cli-codex",
+        "model": "gpt-6.1-terra",
+        "effort": "high",
+        "enabled": true
+      },
+      "claude": {
+        "kind": "cli-claude",
+        "model": "claude-haiku-5-5",
+        "effort": "high",
+        "enabled": true
+      },
+      "openrouter": {
+        "kind": "openai-compat",
+        "base_url": "https://openrouter.ai/api/v1",
+        "key_env": "OPENROUTER_API_KEY",
+        "model": "deepseek/deepseek-v4-flash",
+        "models": [
+          "deepseek/deepseek-v4-flash",
+          "z-ai/glm-4.7-flash",
+          "qwen/qwen3.7-flash"
+        ],
+        "enabled": true
+      },
+      "deepseek": {
+        "kind": "openai-compat",
+        "base_url": "https://api.deepseek.com",
+        "key_env": "DEEPSEEK_API_KEY",
+        "model": "deepseek-flash",
+        "thinking_effort": "medium",
+        "enabled": true
+      },
+      "vertex": {
+        "kind": "openai-compat",
+        "base_url": "http://vertex-proxy:4000/v1",
+        "key_env": "VERTEX_PROXY_KEY",
+        "model": "gemini-3.5-flash-lite",
+        "enabled": true
+      },
+      "gemini": {
+        "kind": "openai-compat",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "key_env": "LLM_GEMINI_API_KEY",
+        "model": "gemini-3.5-flash-lite",
+        "effort_style": "openai",
+        "enabled": false
+      },
+      "xai": {
+        "kind": "openai-compat",
+        "base_url": "https://api.x.ai/v1",
+        "key_env": "XAI_API_KEY",
+        "model": "grok-4.3",
+        "effort_style": "none",
+        "enabled": false
+      },
+      "mistral": {
+        "kind": "openai-compat",
+        "base_url": "https://api.mistral.ai/v1",
+        "key_env": "MISTRAL_API_KEY",
+        "model": "mistral-small-2603",
+        "effort_style": "none",
+        "enabled": false
+      },
+      "qwen": {
+        "kind": "openai-compat",
+        "base_url": "https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
+        "key_env": "DASHSCOPE_API_KEY",
+        "model": "qwen3.8-flash",
+        "effort_style": "none",
+        "enabled": false
+      },
+      "kimi": {
+        "kind": "openai-compat",
+        "base_url": "https://api.moonshot.ai/v1",
+        "key_env": "MOONSHOT_API_KEY",
+        "model": "kimi-k3.1-pro",
+        "effort_style": "none",
+        "enabled": false
+      },
+      "glm": {
+        "kind": "openai-compat",
+        "base_url": "https://api.z.ai/api/paas/v4",
+        "key_env": "GLM_API_KEY",
+        "model": "glm-5.3-flash",
+        "effort_style": "glm",
+        "enabled": false
+      },
+      "anthropic": {
+        "kind": "anthropic-api",
+        "key_env": "LLM_ANTHROPIC_API_KEY",
+        "model": "claude-haiku-5-5",
+        "enabled": false
+      }
+    }
+  },
+  "rerank": {
+    "enabled": false,
+    "provider": "voyage",
+    "model": "rerank-3-lite",
+    "candidates": 100,
+    "max_query_chars": 2000,
+    "timeout_seconds": 5.0,
+    "callers": ["dream", "dialectic", "prefetch"],
+    "daily_request_cap": 2000,
+    "failures_before_cooldown": 3,
+    "cooldown_seconds": 60.0
+  },
+  "defaults": {
+    "brief": 50,
+    "deduction_rounds": 12,
+    "induction_rounds": 10,
+    "backend": null
+  },
+  "peers": {},
+  "pairs": {},
+  "logs": {
+    "max_mb": 10,
+    "keep": 1
+  }
+}

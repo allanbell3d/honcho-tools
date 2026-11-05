@@ -1,0 +1,41 @@
+{
+  "complete_calls": 90,
+  "decision": "inconclusive",
+  "exact_underfilled": 0.0,
+  "judge_kappa": [
+    0.877,
+    0.815,
+    0.779
+  ],
+  "overall_fallback_rate": {
+    "rerank:lexical:100": 0.0556,
+    "rerank:lexical:100+vector-prefix": 0.0,
+    "rerank:lexical:200": 0.0556,
+    "rerank:lexical:200+vector-prefix": 0.0,
+    "rerank:lexical:50": 0.0556,
+    "rerank:lexical:50+vector-prefix": 0.0,
+    "scan": 0.0,
+    "stock": 0.0
+  },
+  "overall_ndcg_at_k": {
+    "rerank:lexical:100": 0.9264,
+    "rerank:lexical:100+vector-prefix": 0.7027,
+    "rerank:lexical:200": 0.9264,
+    "rerank:lexical:200+vector-prefix": 0.7027,
+    "rerank:lexical:50": 0.9214,
+    "rerank:lexical:50+vector-prefix": 0.7027,
+    "scan": 0.7027,
+    "stock": 0.6869
+  },
+  "primary_contrast_overall": {
+    "ci95": [
+      0.1739,
+      0.3246
+    ],
+    "clusters": 26,
+    "delta": 0.2401
+  },
+  "scan_recall_vs_exact": 1.0,
+  "stock_recall_vs_exact": 0.8026,
+  "stock_underfilled": 0.3667
+}

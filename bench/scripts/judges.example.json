@@ -1,0 +1,9 @@
+{
+  "my-judge": {
+    "provider": "openai",
+    "model": "MODEL_NAME",
+    "key_env": "MY_JUDGE_API_KEY",
+    "base_url": "https://api.example.invalid/v1",
+    "json_object_mode": true
+  }
+}

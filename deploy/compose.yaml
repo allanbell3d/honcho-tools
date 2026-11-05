@@ -1,0 +1,265 @@
+# The honcho-tools stack. Paths and the network name come from .env (see .env.example).
+# Relative paths are read from this deploy/ folder, so the defaults (../config, ../data, ...)
+# are the live folders beside src/ at the repository root.
+#
+# dashboard  the web page that edits settings.json, models.json, Honcho's config.toml and the
+#            instruction files.
+# scheduler  queues dreams in scheduler mode.
+# bridge     the OpenAI-compatible endpoint Honcho's models point at (http://bridge:8793/v1 on the
+#            Honcho network). Not published on the host.
+# telemetry  receives Honcho's CloudEvents.
+# backup     nightly pg_dump of the Honcho database.
+# docker-proxy and docker-proxy-action are the only services that mount the Docker socket. The
+#            first answers container listing and inspection, the second restart, start and stop.
+#            See deploy/README.md for what each one exposes.
+#
+# Folders from .env:
+#   CONFIG_DIR     settings.json, models.json and backups/. /config: read-write for the dashboard
+#                  and the scheduler (peer discovery writes settings.json), read-only for the bridge.
+#   HONCHO_ROOT    the Honcho project folder. Only its .env (env_file, read on the host) and its
+#                  config.toml (one file, bound into the dashboard at /honcho/config.toml) are used.
+#   DATA_DIR       instructions/ only. /data in the dashboard.
+#   LOGS_DIR       every log of every component. /logs.
+#   TELEMETRY_DIR  the event files. BACKUP_DIR the dumps. SECRETS_DIR tokens.env and the
+#                  bridge's CLI logins (cli-secrets/ beside src/ by default, ignored by git).
+# No service depends on another: each one starts alone, with or without settings.json, and each
+# one can be stopped alone (deploy/README.md lists what stops working meanwhile).
+# Secrets: every service loads Honcho's .env; telemetry, backup and the scheduler start again with
+# only the variables they read, so their processes do not hold the rest (deploy/README.md).
+
+name: honcho-tools
+
+services:
+  telemetry:
+    image: python:3.12-slim   # the receiver is the standard library only
+    command: ["python", "-u", "/app/receiver.py"]
+    volumes:
+      - ../src/telemetry/receiver.py:/app/receiver.py:ro
+      - ${TELEMETRY_DIR:-../telemetry}:/data
+      - ${LOGS_DIR:-../logs}:/logs:rw   # maintenance.log
+    env_file:
+      - ${HONCHO_ROOT:?Set HONCHO_ROOT in .env}/.env   # Honcho's secrets
+      - ${SECRETS_DIR:-../cli-secrets}/tokens.env   # BRIDGE_TOKEN, TELEMETRY_TOKEN (setup.sh)
+      - .env
+    environment:
+      # In-container paths. They override the host paths that .env also passes in.
+      DATA_DIR: /data
+      MAINTENANCE_LOG: /logs/maintenance.log
+    networks:
+      - honcho
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, urllib.request; p=os.environ.get('PORT') or '8765'; urllib.request.urlopen('http://127.0.0.1:%s/health' % p, timeout=4).read()"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  backup:
+    image: pgvector/pgvector:pg15
+    command: ["bash", "/app/backup.sh"]
+    volumes:
+      - ../src/backup/backup.sh:/app/backup.sh:ro
+      - ${BACKUP_DIR:-../backups}:/backups
+      - ${LOGS_DIR:-../logs}:/logs:rw   # backup.log
+    env_file:
+      - ${HONCHO_ROOT:?Set HONCHO_ROOT in .env}/.env   # Honcho's secrets
+      - ${SECRETS_DIR:-../cli-secrets}/tokens.env   # BRIDGE_TOKEN, TELEMETRY_TOKEN (setup.sh)
+      - .env
+    environment:
+      TZ: ${TZ:-UTC}
+      BACKUP_AT: ${BACKUP_AT:-03:30}
+      KEEP_DAILY: ${KEEP_DAILY:-7}
+      KEEP_WEEKLY: ${KEEP_WEEKLY:-4}
+      BACKUP_LOG: /logs/backup.log
+    networks:
+      - honcho
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  scheduler:
+    build:
+      context: ../src/scheduler
+      dockerfile: Dockerfile
+    image: honcho-tools-scheduler:local
+    restart: unless-stopped
+    env_file:
+      - ${HONCHO_ROOT:?Set HONCHO_ROOT in .env}/.env
+      - ${SECRETS_DIR:-../cli-secrets}/tokens.env   # BRIDGE_TOKEN, TELEMETRY_TOKEN (setup.sh)
+      - .env
+    environment:
+      CONTROL_FILE: /config/settings.json
+      PGHOST: ${PGHOST:-database}
+      PGPORT: ${PGPORT:-5432}
+      PGUSER: ${PGUSER:-honcho}
+      PGDATABASE: ${PGDATABASE:-honcho}
+    volumes:
+      # The folder, not the file. Read-write: peer discovery appends new peers to settings.json,
+      # and the previous file is copied to backups/settings first.
+      - ${CONFIG_DIR:-../config}:/config:rw
+      - ../src/scheduler/dream_nas.py:/app/dream_nas.py:ro
+      - ${LOGS_DIR:-../logs}:/logs:rw   # dream-nas.log
+    networks:
+      - honcho
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Recommended: build this image once. The pip-on-start alternative is in src/dashboard/README.md.
+  dashboard:
+    build:
+      context: ../src/dashboard
+      dockerfile: Dockerfile
+    image: honcho-tools-dashboard:local
+    restart: unless-stopped
+    env_file:
+      - ${HONCHO_ROOT:?Set HONCHO_ROOT in .env}/.env   # Honcho's secrets
+      - ${SECRETS_DIR:-../cli-secrets}/tokens.env   # BRIDGE_TOKEN, TELEMETRY_TOKEN (setup.sh)
+      - .env
+    environment:
+      # In-container paths. They override the host paths that .env also passes in.
+      CONTROL_FILE: /config/settings.json
+      HONCHO_CONFIG_FILE: /honcho/config.toml
+      DATA_DIR: /data
+      SCHEMA_FILE: /templates/settings.schema.json
+      EXAMPLE_FILE: /templates/settings.example.json
+      HONCHO_SCHEMA_FILE: /templates/honcho-config.schema.json
+      TELEMETRY_DIR: /telemetry
+      DOCKER_PROXY_URL: http://docker-proxy:2375
+      DOCKER_PROXY_ACTION_URL: http://docker-proxy-action:2375
+    volumes:
+      - ../src/dashboard/app:/app:ro
+      # The shipped templates: schemas, the settings example, the models seed, Honcho's prompts.
+      - ../src/config:/templates:ro
+      - ${CONFIG_DIR:-../config}:/config:rw
+      # One file, edited in place (never renamed), so Honcho sees the change in its own folder.
+      - ${HONCHO_ROOT:?Set HONCHO_ROOT in .env}/config.toml:/honcho/config.toml:rw
+      - ${DATA_DIR:-../data}:/data:rw
+      # Read-write: the dashboard writes restart.log here and reads the hook's and the scheduler's logs.
+      - ${LOGS_DIR:-../logs}:/logs:rw
+      - ${TELEMETRY_DIR:-../telemetry}:/telemetry:ro
+    ports:
+      - "${BIND_IP:-0.0.0.0}:8010:8010"
+    networks:
+      - honcho
+      - restart
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Built from src/bridge. The process is bridge_cli.py, mounted so an edit needs no rebuild.
+  # The Codex and Claude CLI logins live in SECRETS_DIR, never in git.
+  # No ports: Honcho reaches it as http://bridge:8793/v1 on the Honcho network.
+  bridge:
+    build:
+      context: ../src/bridge
+      dockerfile: Dockerfile
+      args:
+        INSTALL_CODEX: ${INSTALL_CODEX:-0}
+        INSTALL_CLAUDE: ${INSTALL_CLAUDE:-0}
+    image: honcho-tools-bridge:local
+    restart: unless-stopped
+    # Optional supplementary group for a logs/CLI-login mount that only one host group may write.
+    # Keep the node UID and its image-owned working directories unchanged.
+    group_add:
+      - "${BRIDGE_LOG_GID:-1000}"
+    env_file:
+      - ${HONCHO_ROOT:?Set HONCHO_ROOT in .env}/.env   # Honcho's secrets
+      - ${SECRETS_DIR:-../cli-secrets}/tokens.env   # BRIDGE_TOKEN, TELEMETRY_TOKEN (setup.sh)
+      - .env
+    environment:
+      CONTROL_FILE: /config/settings.json
+      BRIDGE_PORT: ${BRIDGE_PORT:-8793}
+    volumes:
+      - ${CONFIG_DIR:-../config}:/config:ro
+      - ../src/bridge/bridge_cli.py:/app/bridge_cli.py:ro
+      - ${SECRETS_DIR:-../cli-secrets}/codex:/home/node/.codex
+      - ${SECRETS_DIR:-../cli-secrets}/claude:/home/node/.claude
+      - ${LOGS_DIR:-../logs}:/logs:rw   # bridge-calls.jsonl
+    networks:
+      - honcho
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import os, urllib.request; p=os.environ.get('BRIDGE_PORT') or '8793'; urllib.request.urlopen('http://127.0.0.1:%s/health' % p, timeout=3).read()"
+      interval: 60s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Two proxies because the image denies every non-GET unless POST=1, and POST=1
+  # together with CONTAINERS=1 would also allow create/exec. GET only here, but every GET under
+  # /containers: listing and inspect (which includes each container's environment), logs,
+  # archive and export. The :ro on the socket does not limit the API; the proxy's rules do.
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      CONTAINERS: "1"
+      POST: "0"
+      EVENTS: "0"
+      PING: "0"
+      VERSION: "0"
+    restart: unless-stopped
+    networks:
+      - restart
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Action-only: restart, start and stop by name (the image documents ALLOW_RESTARTS as also
+  # covering kill); no listing, no create, no exec.
+  docker-proxy-action:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      POST: "1"
+      CONTAINERS: "0"
+      ALLOW_RESTARTS: "1"
+      ALLOW_START: "1"
+      ALLOW_STOP: "1"
+      EVENTS: "0"
+      PING: "0"
+      VERSION: "0"
+    restart: unless-stopped
+    networks:
+      - restart
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  honcho:
+    external: true
+    name: ${HONCHO_NETWORK:-honcho_default}
+  restart:
+    internal: true
