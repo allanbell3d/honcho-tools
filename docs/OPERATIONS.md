@@ -53,7 +53,7 @@ peers are listed and on.
 
 **Peers** and **Pairs** set, per row, the brief, the deduction and induction efforts, rounds, the dream model override and (behind ⋯) the six
 Honcho dream limits and the per-dream rerank keys. An empty field inherits (pair, observer, observed, defaults) and
-shows the inherited value faded; **Reset** clears a row's own values. The **Defaults** row is `defaults`.
+shows the inherited value faded, and a value that differs from the Defaults row is tinted; **Reset** clears a row's own values. The **Defaults** row is `defaults`.
 
 ## Models and effort
 

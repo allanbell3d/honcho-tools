@@ -53,6 +53,7 @@ button:disabled { opacity:.5; cursor:default; }
 select, input[type=text], input[type=number] { font:inherit; height:28px; border:1px solid var(--line); border-radius:4px; background:var(--page); color:var(--ink); padding:0 6px; max-width:100%; }
 select:focus, input:focus, textarea:focus { outline:none; border-color:var(--accent); }
 select.inherit { color:var(--muted); font-style:italic; }
+select.differs, button.differs, input.differs { border-color:var(--accent); background:var(--accent-bg); }
 select.changed, button.changed, input.changed { border-color:var(--amber-edge) !important; background:var(--amber-bg) !important; }
 input.inherit::placeholder { color:var(--muted); font-style:italic; }
 .stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
@@ -993,13 +994,19 @@ function changedField(kind, key, f) { return !same((rowBlock(kind, key) || {})[f
 const UNSET_MEANS = { "dream.write_window_iterations": "15% of rounds" };
 function tagOf(i) { return i ? (i.value == null ? "—" : String(i.value)) + " · " + i.src : "—"; }
 function markChanged(node, on) { if (on) node.classList.add("changed"); return node; }
+// A light tint for a value that is not the Defaults row's: the row's own, or on Pairs one it takes from a peer.
+function differsFromDefault(kind, own, inherited, base) {
+  const value = own ?? (inherited && inherited.src === "peer" ? inherited.value : null);
+  return kind !== "defaults" && value != null && !same(value, base ?? null);
+}
+function markDiffers(node, on) { if (on) node.classList.add("differs"); return node; }
 function cells(kind, key, onSet) {
   const block = rowBlock(kind, key) || {};
   const isDefaults = kind === "defaults";
   const inh = isDefaults ? {} : inheritedFor(kind, key);
   const tag = (f) => (!isDefaults && inh[f] ? tagOf(inh[f]) : EFFORT_STAGE[f] ? unsetEffort(f, kind, key) : "—");
   const effortCell = (f) => h("td", {}, ch(f, choice([{ value: "", label: tag(f) }].concat(EFFORTS.map(effortOption)), block[f] || "", (v) => onSet(f, v || null), { style: "width:150px" })));
-  const ch = (f, node) => markChanged(node, changedField(kind, key, f));
+  const ch = (f, node) => markDiffers(markChanged(node, changedField(kind, key, f)), differsFromDefault(kind, block[f], inh[f], S.settings.defaults[f]));
   return [
     h("td", {}, ch("brief", numberChoice(BRIEFS, block.brief, tag("brief"), (v) => onSet("brief", v), 88))),
     effortCell("deduction_effort"),
@@ -1044,7 +1051,8 @@ function modelButton(kind, key, onSet) {
   const own = block.backend;
   const display = dreamModelDisplay(kind, key);
   const button = h("button", { class: own ? "pick" : "pick inherit", title: display.title + "\nClick to choose an override.", onclick: () => openModelPicker(own, kind === "defaults" ? "Use stage models / fallback" : "Inherit", (ref) => onSet("backend", ref)) }, display.label);
-  return markChanged(button, changedField(kind, key, "backend"));
+  const override = dreamChain(kind, key).slice(0, -1).map(([chained]) => chained && chained.backend).find(Boolean);
+  return markDiffers(markChanged(button, changedField(kind, key, "backend")), differsFromDefault(kind, override, null, S.settings.defaults.backend));
 }
 function vendorsOf() { return [...new Set(dreamEntries().map((e) => e.vendor))]; }
 function openModelPicker(current, inheritLabel, onPick) {
@@ -1195,7 +1203,7 @@ function pagePeers() {
   const discovered = (S.peersApi.discovered || []).filter((n) => !(n in peers));
   return [
     h("h1", {}, "Peers"),
-    h("p", { class: "lead" }, "Dreams: a peer is On while any of its pairs (Pairs page) is On. On starts its own pair (the peer with itself); Off stops every pair with it, here and on Pairs. Switches act at once. “· default” values come from the Defaults row; pick a value to set it for one peer. Changed values are outlined in amber until written. ⋯ opens the dream limits for that row. Click a name for its peer card."),
+    h("p", { class: "lead" }, "Dreams: a peer is On while any of its pairs (Pairs page) is On. On starts its own pair (the peer with itself); Off stops every pair with it, here and on Pairs. Switches act at once. “· default” values come from the Defaults row; pick a value to set it for one peer. A value that differs from the Defaults row is tinted. Changed values are outlined in amber until written. ⋯ opens the dream limits for that row. Click a name for its peer card."),
     S.selected.peers.size ? bulkBar("peers", (k, f, v) => setBlock(peers, k, f, v)) : null,
     h("div", { class: "box" }, h("div", { class: "in tw" }, h("table", {},
       h("thead", {}, h("tr", {}, h("th", {}, selectAllBox("peers", keys)), h("th", {}, "Peer"), h("th", {}, "Dreams"), TABLE_HEAD.map((t) => h("th", {}, t)))),
@@ -1260,7 +1268,7 @@ function pagePairs() {
     : h("p", { class: "hint" }, "Pairs are made from the peers on the Peers page; none is listed yet.");
   return [
     h("h1", {}, "Pairs"),
-    h("p", { class: "lead" }, "A pair is one dream: what the observer knows about the observed peer. Each peer's own pair is listed too. Switching a pair On turns its peers On; a peer whose pairs are all Off goes Off. Pairs found in Honcho are added by the scheduler (in scheduler mode) Off. Switches act at once. A value not set on the pair comes from the observer peer (“· peer”), then the Defaults (“· default”). Changed values are outlined in amber until written."),
+    h("p", { class: "lead" }, "A pair is one dream: what the observer knows about the observed peer. Each peer's own pair is listed too. Switching a pair On turns its peers On; a peer whose pairs are all Off goes Off. Pairs found in Honcho are added by the scheduler (in scheduler mode) Off. Switches act at once. A value not set on the pair comes from the observer peer (“· peer”), then the Defaults (“· default”). A value that differs from the Defaults row is tinted. Changed values are outlined in amber until written."),
     S.settings.mode === "scheduler" ? null : h("p", { class: "bad" }, "Scheduling is off (Overview, Who starts dreams): Honcho starts dreams itself, and only a peer switched Off stops them. These pair switches decide which dreams run once this scheduler starts them; the scheduler also adds the pairs it finds in Honcho then."),
     S.selected.pairs.size ? bulkBar("pairs", (k, f, v) => setBlock(pairs, k, f, v)) : null,
     h("div", { class: "box" }, h("div", { class: "in" }, h("div", { class: "tw" }, h("table", {},
@@ -1378,7 +1386,8 @@ function rerankCells(kind, key) {
   const block = rerankBlock(kind, key), inh = rerankInherited(kind, key);
   const cells = RERANK_MAIN.map((f) => {
     const [, , , control] = RERANK.find((r) => r[0] === f);
-    return h("td", {}, markChanged(rerankControl(f, control, block[f], inh[f], (v) => setRerank(kind, key, f, v), f === "model" ? 150 : 112), rerankChanged(kind, key, f)));
+    const base = rerankBlock("defaults", null)[f] ?? (S.settings.rerank || {})[f];
+    return h("td", {}, markDiffers(markChanged(rerankControl(f, control, block[f], inh[f], (v) => setRerank(kind, key, f, v), f === "model" ? 150 : 112), rerankChanged(kind, key, f)), differsFromDefault(kind, block[f], inh[f], base)));
   });
   const set = RERANK_EXTRA.filter((f) => block[f] != null).length;
   const changed = RERANK_EXTRA.some((f) => rerankChanged(kind, key, f));

@@ -354,6 +354,27 @@ assertSummary();
     assert result.returncode == 0, result.stderr
 
 
+def test_a_value_differing_from_defaults_is_marked():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is not installed")
+    source = (ROOT / "src/dashboard/app/index.html").read_text(encoding="utf-8")
+    functions = source[source.index("function differsFromDefault("):source.index("function markDiffers(")]
+    checks = """
+const assert = require('assert');
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+assert.equal(differsFromDefault("peers", 20, null, 16), true);
+assert.equal(differsFromDefault("peers", 16, null, 16), false);
+assert.equal(differsFromDefault("peers", null, {value: 16, src: "default"}, 16), false);
+assert.equal(differsFromDefault("pairs", null, {value: 20, src: "peer"}, 16), true);
+assert.equal(differsFromDefault("pairs", null, {value: 16, src: "peer"}, 16), false);
+assert.equal(differsFromDefault("peers", "codex:gpt-6.1-sol", null, undefined), true);
+assert.equal(differsFromDefault("defaults", 20, null, 16), false);
+"""
+    result = subprocess.run([node, "-e", functions + checks], capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stderr
+
+
 def test_model_pickers_name_the_route():
     node = shutil.which("node")
     if not node:

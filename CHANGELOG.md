@@ -11,6 +11,7 @@
 - `rates.json` prices every model in the catalogue: a new `embedding` table (OpenAI, Gemini, Voyage) and the OpenRouter models. Embeddings count in the cost totals and in each run's cost. Copy the new `src/config/rates.example.json` over your `rates.json`, keeping any prices of your own.
 - Model pickers: API and CLI routes are separate providers, such as OpenAI API and OpenAI CLI, and every model name ends in API or CLI. A CLI subscription could be mistaken for the same model on its paid API.
 - Model catalogue: the Codex CLI list now has every model Codex offers, in its order: GPT-6.1 Sol, GPT-6 Astra, GPT-6.1 Terra, GPT-6 Sol, GPT-6 Luna, GPT-5.6 Sol, GPT-5.6 Terra and GPT-5.6 Luna. Only three were listed. An existing `models.json` needs these entries added.
+- Peers, Pairs and Rerank: a value that differs from the Defaults row has a light tint, including a value a pair takes from a peer.
 
 ## v0.1.2 — 2026-11-06
 
