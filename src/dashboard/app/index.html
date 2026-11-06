@@ -1436,7 +1436,7 @@ function pageRerank() {
   ];
 }
 // ---------- Runs and Cost ----------
-const CR = { open: new Set(), openRun: null, calls: {}, byId: {},
+const CR = { open: new Set(), openRun: null, calls: {}, stale: false, byId: {},
   cost: { sort: "usd", dir: -1, day: "", stage: "", provider: "", model: "", route: "", status: "", pair: "", byDay: true },
   runs: { sort: "started", dir: -1, day: "", pair: "", model: "", state: "", rerank: "", text: "" } };
 const CR_ROUTES = { api: "API", cli: "subscription", unknown: "not recorded" };
@@ -1528,7 +1528,7 @@ function pageCost() {
   crWalk(rows, crLevels(), 0, "", body, empty);
   const parts = t.ok + t.failed + t.skipped + t.cancelled, failed = t.failed + t.cancelled;
   const pairs = crUniq(Object.values(CR.byId).map((r) => r.observer + " → " + r.observed));
-  return [h("h1", {}, "Cost"), h("p", { class: "lead" }, "List-price estimates from telemetry tokens and rates.json, one line for each place a model is set. Failed counts every failed attempt, including those a retry or fallback recovered. Days are UTC."),
+  return [h("h1", {}, "Cost"), h("p", { class: "lead" }, "List-price estimates from telemetry tokens and rates.json, one line for each place a model is set. Failed counts every failed attempt, including those a retry or fallback recovered. Days are UTC; the page refreshes every 30 seconds."),
     data.rate_error ? h("p", { class: "warn" }, data.rate_error) : null,
     data.truncated || (data.errors || []).length ? h("p", { class: "warn" }, "Partial coverage: telemetry scan limit or unreadable files.") : null,
     h("div", { class: "box" }, h("div", { class: "in row cr-filters" },
@@ -1646,7 +1646,7 @@ function pageRuns() {
     if (open) body.push(crRunDetail(r.run_id, CR_RUN_COLS.length));
   }
   const notClean = rows.filter((r) => crRunState(r) !== "clean").length, skipped = rows.filter((r) => ["part", "none"].includes(crRerankState(r))).length;
-  return [h("h1", {}, "Runs"), h("p", { class: "lead" }, "Completed dreams and the settings each used, joined to telemetry by run ID. Click a run for its passes, costs and every call. Times are UTC."),
+  return [h("h1", {}, "Runs"), h("p", { class: "lead" }, "Completed dreams and the settings each used, joined to telemetry by run ID. Click a run for its passes, costs and every call. Times are UTC; the page refreshes every 30 seconds."),
     data.truncated ? h("p", { class: "warn" }, "Partial results: a log or telemetry read limit was reached.") : null,
     (data.errors || []).length ? h("p", { class: "warn" }, "Some telemetry files could not be read.") : null,
     h("div", { class: "box" }, h("div", { class: "in row cr-filters" },
@@ -1984,6 +1984,28 @@ setInterval(async () => {
   if (S.page !== "overview" || S.busy) return;
   try { await reloadPart("status", "/api/status"); render(); } catch (e) { /* next poll retries */ }
 }, 5000);
+const STALE_NOTE = "settings.json changed outside this page. Your unsaved changes stay here, but Write is refused until you discard them and reload.";
+// Keeps an open tab true: reloads when settings.json changes, unless that would throw away work in progress.
+async function refreshOpenPage() {
+  const active = document.activeElement;
+  if (document.hidden || S.busy || CR.polling || S.editor || document.querySelector(".modal.show") || (active && ["SELECT", "INPUT", "TEXTAREA"].includes(active.tagName))) return;
+  CR.polling = true;
+  try {
+    const current = await api("/api/settings");
+    if (current.mtime_ns === S.mtime) CR.stale = false;
+    else if (!changeCount()) { CR.stale = false; if (S.notice && S.notice.text === STALE_NOTE) S.notice = ""; await loadAll(); }
+    else if (!CR.stale) { CR.stale = true; note(STALE_NOTE, true); }
+    if (S.page === "cost" || S.page === "runs") {
+      const [runs, cost] = await Promise.all([api("/api/runs"), api("/api/cost")]);
+      S.runs = runs; S.cost = cost;
+      document.getElementById("read-at").textContent = "Read " + when(new Date());
+      render();
+    }
+  } catch (e) { /* the next refresh retries */ }
+  CR.polling = false;
+}
+setInterval(refreshOpenPage, 30000);
+document.addEventListener("visibilitychange", refreshOpenPage);
 </script>
 </body>
 </html>

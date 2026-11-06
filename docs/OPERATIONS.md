@@ -127,6 +127,9 @@ Telemetry does not mark a peer card refresh, so its line shows `none recorded` a
 and Dream induction. Embedding tokens are Honcho's estimates. Telemetry is sampled by Honcho
 (`HIGH_VOLUME_SAMPLE_RATE`), so counts are a lower bound, and the estimates are never invoices.
 
+An open dashboard tab checks `settings.json` every 30 seconds and when you return to the tab, and reloads when it
+changed. With unsaved changes it keeps them and warns instead. Runs and Cost refresh their data at the same pace.
+
 ## Logs and status
 
 **Logs** shows the newest lines of the dream log and the scheduler log, and the container panel (state, started,

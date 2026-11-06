@@ -7,6 +7,7 @@
 - Runs page rebuilt: one row per dream with status, duration, model, both efforts, searches reranked, conclusions, tokens, cost and failed calls, with filters and sorting. A run opens in place, here and on Cost, with its passes, settings, the cost of its model calls and reranks, and every call with its tokens and cost.
 - Dashboard: Runs and Cost read each telemetry file once and then only its new lines, instead of parsing every day on every request. A 256 MB read limit would soon have cut these pages short; it no longer applies to them.
 - Cost: a fallback call with no billing route counts as API, not as a potential cost. The bridge always reports its route, so such a call went straight to the provider.
+- Dashboard: an open tab notices a changed `settings.json` within 30 seconds, or when you return to it, and reloads; with unsaved changes it keeps them and warns. It used to show what it read at page load until reloaded by hand. Runs and Cost refresh at the same pace.
 
 ## v0.1.2 — 2026-11-06
 
