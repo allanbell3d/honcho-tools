@@ -1893,7 +1893,7 @@ def test_cost_entries_cover_every_stage_with_status_and_fallback(client, tmp_pat
     result = app.get("/api/cost", params={"date": day}).json()
     entries = {tuple(entry[:8]): entry[8:] for entry in result["entries"]}
     assert ("dream.deduction", "openai", "sol", "unknown", day, "dream", "failed", False) in entries
-    assert ("dream.deduction", "not recorded", "flash", "unknown", day, "dream", "ok", True) in entries
+    assert ("dream.deduction", "not recorded", "flash", "api", day, "dream", "ok", True) in entries
     assert ("rerank", "voyage", "r", "api", day, "dream", "skipped", False) in entries
     assert entries[("rerank", "voyage", "r", "api", day, "dream", "ok", False)] == [1, 1000, pytest.approx(0.001)]
     assert ("embedding", "openai", "e", "api", day, "dream", "ok", False) in entries

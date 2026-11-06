@@ -3053,6 +3053,9 @@ def estimate_call(kind: str, data: dict, rates: dict, when: str = "") -> dict:
     cli = rates.get("cli") if isinstance(rates.get("cli"), dict) else {}
     explicit = data.get("billing_route")
     route = "api" if kind == RERANK_EVENT else (explicit if explicit in ("api", "cli") else ("api" if data.get("transport") in ("anthropic", "gemini") else "cli" if cli.get(model) == "subscription" else "unknown"))
+    # The bridge always reports its route: a fallback without one went straight to the provider.
+    if route == "unknown" and data.get("was_fallback") is True and not model.startswith("@") and model != "stage-route":
+        route = "api"
     result = {"billing_route": route, "estimated_usd": None, "tokens": None, "note": None,
               "route_conflict": explicit == "api" and cli.get(model) == "subscription"}
     if data.get("usage_complete") is False:
