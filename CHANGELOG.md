@@ -3,6 +3,9 @@
 ## v0.1.3 — 2026-11-06
 
 - Runs page: Conclusions created shows the real count, the sum of Honcho's `created_observation_count` over the dream's passes. It always said "unknown" because the page read a field Honcho never sends.
+- Cost page rebuilt: one line for each row of the Models page, plus Rerank and Embeddings, each opening by provider and model, then day, then run. Columns for runs, calls, OK, failed, skipped, fallback, tokens and API cost; filters and sorting; a check that the calls add up. Failed calls and embeddings were missing before. `/api/cost` returns `entries` in place of `rows`, and the date picker is gone: the page covers the last 7 days, with a day filter.
+- Runs page rebuilt: one row per dream with status, duration, model, both efforts, searches reranked, conclusions, tokens, cost and failed calls, with filters and sorting. A run opens in place, here and on Cost, with its passes, settings, the cost of its model calls and reranks, and every call with its tokens and cost.
+- Dashboard: Runs and Cost read each telemetry file once and then only its new lines, instead of parsing every day on every request. A 256 MB read limit would soon have cut these pages short; it no longer applies to them.
 
 ## v0.1.2 — 2026-11-06
 

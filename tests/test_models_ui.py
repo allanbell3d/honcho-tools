@@ -107,7 +107,7 @@ assert.equal(whenUtc('not a time'), 'not a time');
         result = subprocess.run([node, "-e", functions + checks], capture_output=True, text=True, timeout=10,
                                 env={**os.environ, "TZ": zone})
         assert result.returncode == 0, zone + ": " + result.stderr
-    assert "whenUtc(row.started)" in source
+    assert "whenUtc(r.started)" in source
 
 
 def test_stage_setup_merges_params_and_later_provider_edits_are_hot():
@@ -358,7 +358,6 @@ def test_no_page_writes_the_embedding_model():
     # The embedding model is set once in config.toml at install. No page reads or writes embedding.model_config.
     source = (ROOT / "src/dashboard/app/index.html").read_text(encoding="utf-8")
     assert "embedding.model_config" not in source
-    assert "Embedding" not in source
     assert "The embedding model is set once in config.toml at install" in (ROOT / "src/dashboard/README.md").read_text(encoding="utf-8")
     assert "The embedding model is set once in config.toml at install" in (ROOT / "docs/HONCHO-CONFIG.md").read_text(encoding="utf-8")
 
@@ -366,7 +365,7 @@ def test_no_page_writes_the_embedding_model():
 def test_summary_headroom_is_edited_on_the_honcho_config_page_only():
     # The Honcho config page is the one place that writes config.toml. The Rerank page keeps settings.json only.
     source = (ROOT / "src/dashboard/app/index.html").read_text(encoding="utf-8")
-    rerank_page = source[source.index("function pageRerank("):source.index("async function refreshRuns(")]
+    rerank_page = source[source.index("function pageRerank("):source.index("// ---------- Runs and Cost ----------")]
     honcho_page = source[source.index("function pageHoncho("):source.index("function addModelBox(")]
     assert "output_headroom" not in rerank_page and "honchoLabel(" not in rerank_page and "hSet(" not in rerank_page
     assert "Honcho summary setting (config.toml)" in honcho_page

@@ -116,8 +116,8 @@ Every page, with fictional demo data. Click one for full size.
 <td width="50%" valign="top"><a href="docs/images/rerank-light.png"><img src="docs/images/rerank-light.png" alt="The dashboard's Rerank page"></a><br><b>Rerank</b>: provider, model and recent searches</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><a href="docs/images/runs-light.png"><img src="docs/images/runs-light.png" alt="The dashboard's Runs page"></a><br><b>Runs</b>: every dream: who, model, time, cost</td>
-<td width="50%" valign="top"><a href="docs/images/cost-light.png"><img src="docs/images/cost-light.png" alt="The dashboard's Cost page"></a><br><b>Cost</b>: estimated cost by day, stage and model</td>
+<td width="50%" valign="top"><a href="docs/images/runs-light.png"><img src="docs/images/runs-light.png" alt="The dashboard's Runs page"></a><br><b>Runs</b>: every dream: who, model, time, cost, down to each call</td>
+<td width="50%" valign="top"><a href="docs/images/cost-light.png"><img src="docs/images/cost-light.png" alt="The dashboard's Cost page"></a><br><b>Cost</b>: estimated cost per job, by provider, day and run</td>
 </tr>
 <tr>
 <td width="50%" valign="top"><a href="docs/images/instructions-light.png"><img src="docs/images/instructions-light.png" alt="The dashboard's Instructions page"></a><br><b>Instructions</b>: default, backend and peer instructions</td>

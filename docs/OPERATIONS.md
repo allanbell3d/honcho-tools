@@ -113,11 +113,19 @@ lower value, and the benchmark (`bench/README.md`) shows what the index misses a
 
 ## Cost and runs
 
-**Runs** joins each completed dream's record (`runs.log`) with its telemetry by run id: settings used, model and
-route observed, rerank outcomes. **Cost** prices the LLM and rerank calls in telemetry at the list prices in
-`rates.json` (`setup.sh` copies `src/config/rates.example.json` beside `settings.json`; keep it current; a model without a
-rate shows `no rate`). Telemetry is sampled by Honcho (`HIGH_VOLUME_SAMPLE_RATE`), so counts are a lower bound, and
-the estimates are never invoices.
+**Runs** lists each completed dream from `runs.log`, joined with its telemetry by run id: status, duration, model,
+efforts, searches reranked, conclusions, tokens, cost and failed calls. Filter and sort it, and click a run for its
+passes, settings, costs and every model and rerank call with its own tokens and cost.
+
+**Cost** prices the calls in telemetry at the list prices in `rates.json` (`setup.sh` copies
+`src/config/rates.example.json` beside `settings.json`; keep it current; a model without a rate shows `no rate`). It has
+one line for each row of the Models page, plus Rerank and Embeddings. A line opens by provider and model, then day, then
+run. The calls add up on the page: OK, failed and skipped equal the total. Failed counts every failed attempt, including
+those a retry or fallback recovered. A subscription call shows `$0.00 subscription`, and a skipped rerank `$0.00 skipped`.
+
+Telemetry does not mark a peer card refresh, so its line shows `none recorded` and a refresh counts under Dream deduction
+and Dream induction. Embedding tokens are Honcho's estimates. Telemetry is sampled by Honcho
+(`HIGH_VOLUME_SAMPLE_RATE`), so counts are a lower bound, and the estimates are never invoices.
 
 ## Logs and status
 

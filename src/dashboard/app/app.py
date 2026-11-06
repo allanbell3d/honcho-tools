@@ -2392,6 +2392,7 @@ def service_container(names: list[str], service: str) -> str | None:
 
 # ---------- rerank telemetry summary ----------
 RERANK_EVENT = "rerank.call.completed"
+RERANK_MARK = f'"{RERANK_EVENT}"'.encode()
 RERANK_DAYS = 7
 # Bounds per request. A line above RERANK_LINE_LIMIT is drained in chunks and skipped; the scan stops,
 # with truncated set, after RERANK_SCAN_BYTES read or RERANK_SCAN_EVENTS kept; each period keeps at most
@@ -2425,16 +2426,20 @@ class _Budget:
         return self.bytes_left <= 0 or self.events_left <= 0
 
 
-def _event_lines(path: Path, budget: _Budget):
+def _event_lines(path: Path, budget: _Budget, consumed: list[int] | None = None):
     """Complete lines of one events file, plain or gzipped, read in bounded chunks.
 
     A line longer than RERANK_LINE_LIMIT is drained chunk by chunk and skipped without
-    ever being held whole. Reading stops when the budget's bytes are spent.
+    ever being held whole. Reading stops when the budget's bytes are spent. With consumed,
+    a one-item list, reading starts at that offset, the item follows the end of the last
+    complete line, and a last line with no newline yet is left for the next read.
     """
     opener = gzip.open if path.suffix == ".gz" else open
     pending = bytearray()
     oversize = False
+    position = consumed[0] if consumed else 0
     with opener(path, "rb") as handle:
+        handle.seek(position)
         while True:
             if budget.bytes_left <= 0:
                 budget.truncated.append(f"{path.name}: byte budget")
@@ -2455,6 +2460,8 @@ def _event_lines(path: Path, budget: _Budget):
                         else:
                             pending += rest
                     break
+                if consumed is not None:
+                    consumed[0] = position + newline + 1
                 if not oversize:
                     pending += chunk[start:newline]
                     if len(pending) <= RERANK_LINE_LIMIT:
@@ -2462,7 +2469,8 @@ def _event_lines(path: Path, budget: _Budget):
                 pending.clear()
                 oversize = False
                 start = newline + 1
-    if pending and not oversize:
+            position += len(chunk)
+    if pending and not oversize and consumed is None:
         yield bytes(pending)
 
 
@@ -2626,6 +2634,8 @@ def _scan_file(path: Path, days: list[str], budget: _Budget, period: _RerankPeri
         if budget.events_left <= 0:
             budget.truncated.append(f"{path.name}: event budget")
             return
+        if RERANK_MARK not in raw:
+            continue
         item = _parse_line(raw)
         if item is None:
             continue
@@ -2798,6 +2808,148 @@ def rerank_warnings():
     return {"warnings": warnings, "ef_search": ef if ef is not None else "unknown", "iterative_scan": pg["iterative_scan"] or "unknown", "pgoptions_source": pg["source"]}
 
 
+LLM_EVENT = "llm.call.completed"
+EMBEDDING_EVENT = "embedding.call.completed"
+INDEXED_EVENTS = (LLM_EVENT, RERANK_EVENT, EMBEDDING_EVENT, "dream.run", "dream.specialist", "dialectic.completed")
+INDEXED_MARKS = tuple(f'"{kind}"'.encode() for kind in INDEXED_EVENTS)
+INDEXED_FIELDS = frozenset((
+    "run_id", "workspace_name", "call_purpose", "model", "resolved_model", "backend", "billing_route", "routing_evidence",
+    "transport", "provider_input_tokens", "provider_output_tokens", "cache_read_tokens", "cache_creation_tokens",
+    "usage_complete", "outcome", "was_stream", "was_fallback", "attempt", "error_class", "duration_ms", "provider", "tokens",
+    "billed_units", "caller", "candidates_sent", "results_returned", "daily_requests", "daily_request_cap",
+    "input_tokens_estimate", "total_duration_ms", "specialist_type", "created_observation_count", "reasoning_level",
+))
+# Bounds per refresh of the index: what one request may read of what is new.
+EVENT_SCAN_BYTES = 8 * 1024 * 1024 * 1024
+RUN_LOG_BYTES = 8_000_000
+RUN_LOG_LINES = 20_000
+_POLICY_LINE = re.compile(r"(\d{4}-\d\d-\d\d)[ T](\d\d:\d\d:\d\d)\S*\s+(\S+?)/(\S+)\s+<-\s+\S+\s+(\{.*?\})\s+mode=")
+
+
+class _EventFile:
+    """What the Runs and Cost pages need from one events file, and how far it has been read."""
+
+    def __init__(self) -> None:
+        self.mtime = 0
+        self.offset = 0
+        self.read = False
+        self.events: list[tuple] = []
+
+
+_event_files: dict[Path, _EventFile] = {}
+_event_files_lock = threading.Lock()
+
+
+def _load_events(path: Path, budget: _Budget) -> _EventFile:
+    """The file's entry, brought up to date by reading only what is new. A gzipped file is read once."""
+    stat = path.stat()
+    packed = path.suffix == ".gz"
+    entry = _event_files.get(path)
+    if entry is None or stat.st_size < entry.offset or (packed and stat.st_mtime_ns != entry.mtime):
+        entry = _event_files[path] = _EventFile()
+    if (packed and entry.read) or (not packed and entry.offset == stat.st_size):
+        return entry
+    consumed = None if packed else [entry.offset]
+    if packed:
+        entry.events = []
+    try:
+        for raw in _event_lines(path, budget, consumed):
+            if not any(mark in raw for mark in INDEXED_MARKS):
+                continue
+            item = _parse_line(raw)
+            event = item.get("event") if item else None
+            data = event.get("data") if isinstance(event, dict) else None
+            if not isinstance(data, dict) or event.get("type") not in INDEXED_EVENTS:
+                continue
+            if budget.events_left <= 0:
+                budget.truncated.append("event budget")
+                break
+            budget.events_left -= 1
+            when = event.get("time") or item.get("received_at") or ""
+            entry.events.append((event["type"], when if isinstance(when, str) else "", event.get("id"),
+                                 {key: value for key, value in data.items() if key in INDEXED_FIELDS}))
+    finally:
+        if packed:
+            entry.mtime = stat.st_mtime_ns
+            entry.read = not budget.truncated
+        else:
+            entry.offset = consumed[0]
+    return entry
+
+
+def telemetry_events(days: list[str]) -> tuple[list[tuple], list[str], bool]:
+    """The indexed events dated in days, each once: (type, time, id, fields), the file names that failed, and truncated."""
+    budget = _Budget(max_bytes=EVENT_SCAN_BYTES)
+    directory = telemetry_dir()
+    errors = []
+    events = []
+    seen = set()
+    with _event_files_lock:
+        for day in days:
+            for suffix in (".jsonl", ".jsonl.gz"):
+                path = directory / f"events-{day}{suffix}"
+                if not path.is_file():
+                    continue
+                try:
+                    entry = _load_events(path, budget)
+                except (OSError, EOFError, zlib.error):
+                    errors.append(path.name)
+                    continue
+                for event in entry.events:
+                    if event[1][:10] not in days:
+                        continue
+                    if isinstance(event[2], str):
+                        if event[2] in seen:
+                            continue
+                        seen.add(event[2])
+                    events.append(event)
+        keep = {directory / f"events-{day}{suffix}" for day in {*days, *_utc_days(RERANK_DAYS)} for suffix in (".jsonl", ".jsonl.gz")}
+        for path in [path for path in _event_files if path not in keep]:
+            del _event_files[path]
+    return events, errors, bool(budget.truncated)
+
+
+def run_records(days: list[str]) -> dict:
+    """The runs.log records that started in days, by run id."""
+    rows = {}
+    for line in tail_lines(policy_log_path().with_name("runs.log"), RUN_LOG_LINES, RUN_LOG_BYTES) or []:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(row, dict) or _secret(row):
+            continue
+        run_id = row.get("run_id")
+        if isinstance(run_id, str) and isinstance(row.get("started"), str) and row["started"][:10] in days:
+            rows[run_id] = row
+    return rows
+
+
+def policy_efforts() -> dict:
+    """Per pair, in log order, each dream's two efforts: (time, deduction, induction)."""
+    pairs: dict = {}
+    for line in tail_lines(policy_log_path(), RUN_LOG_LINES, RUN_LOG_BYTES) or []:
+        match = _POLICY_LINE.match(line)
+        if not match:
+            continue
+        try:
+            body = json.loads(match[5])
+        except ValueError:
+            continue
+        pairs.setdefault(f"{match[3]}/{match[4]}", []).append(
+            (f"{match[1]}T{match[2]}", body.get("deduction_effort"), body.get("induction_effort")))
+    return pairs
+
+
+def _efforts_at(entries: list, started: str) -> tuple:
+    found = (None, None, None)
+    for entry in entries:
+        if entry[0] > started[:19]:
+            break
+        found = entry
+    return found[1], found[2]
+
+
 @app.get("/api/runs")
 def get_runs(pair: str = "", date: str = ""):
     if date:
@@ -2809,70 +2961,36 @@ def get_runs(pair: str = "", date: str = ""):
     days = [date] if date else _utc_days(7)
     log = policy_log_path().with_name("runs.log")
     rows = {}
-    for line in tail_lines(log, 500) or []:
-        try:
-            row = json.loads(line)
-        except ValueError:
-            continue
-        if not isinstance(row, dict) or _secret(row):
-            continue
-        run_id = row.get("run_id")
-        if not isinstance(run_id, str) or not isinstance(row.get("started"), str) or row["started"][:10] not in days:
-            continue
-        if pair and f"{row.get('observer')}/{row.get('observed')}" != pair:
-            continue
-        allowed = ("run_id", "workspace_name", "observer", "observed", "started", "finished", "mode", "source", "backend", "stage_backends", "brief", "deduction_rounds", "induction_rounds", "rerank")
-        rows[run_id] = {key: row.get(key) for key in allowed}
+    allowed = ("run_id", "workspace_name", "observer", "observed", "started", "finished", "mode", "source", "backend", "stage_backends", "brief", "deduction_rounds", "induction_rounds", "rerank")
+    for run_id, row in run_records(days).items():
+        if not pair or f"{row.get('observer')}/{row.get('observed')}" == pair:
+            rows[run_id] = {key: row.get(key) for key in allowed}
     observed = {run_id: {} for run_id in rows}
     periods = {run_id: _RerankPeriod() for run_id in rows}
     dreams = {run_id: {"duration_ms": None, "conclusions_created": None, "specialists": []} for run_id in rows}
-    budget = _Budget()
-    errors = []
-    seen_ids = set()
-    for day in days:
-        for suffix in (".jsonl", ".jsonl.gz"):
-            path = telemetry_dir() / f"events-{day}{suffix}"
-            if not path.is_file() or budget.spent() or not rows:
-                continue
-            try:
-                for raw in _event_lines(path, budget):
-                    if budget.events_left <= 0:
-                        budget.truncated.append("event budget")
-                        break
-                    budget.events_left -= 1
-                    item = _parse_line(raw)
-                    event = item.get("event") if item else None
-                    data = event.get("data") if isinstance(event, dict) else None
-                    if not isinstance(data, dict) or not isinstance(data.get("run_id"), str) or data["run_id"] not in rows:
-                        continue
-                    workspace = rows[data["run_id"]].get("workspace_name")
-                    if workspace and data.get("workspace_name") != workspace:
-                        continue
-                    event_id = event.get("id")
-                    if isinstance(event_id, str):
-                        if event_id in seen_ids:
-                            continue
-                        seen_ids.add(event_id)
-                    run_id = data["run_id"]
-                    kind = event.get("type")
-                    if kind == "llm.call.completed":
-                        fields = ("stage", "model", "backend", "billing_route", "evidence")
-                        values = (data.get("call_purpose"), data.get("model"), data.get("backend"),
-                                  data.get("billing_route"), data.get("routing_evidence"))
-                        values = tuple(public(value) if isinstance(value, str) else "unknown" for value in values)
-                        entry = observed[run_id].setdefault(values, {**dict(zip(fields, values)), "calls": 0})
-                        entry["calls"] += 1
-                    elif kind == RERANK_EVENT:
-                        periods[run_id].add(data, str(event.get("time") or ""))
-                    elif kind in ("dream.run", "dream.specialist"):
-                        dream = dreams[run_id]
-                        if kind == "dream.run":
-                            dream["duration_ms"] = _finite_number(data.get("total_duration_ms"))
-                        else:
-                            dream["specialists"].append({"type": public(data.get("specialist_type")), "duration_ms": _finite_number(data.get("duration_ms")), "conclusions_created": _finite_int(data.get("created_observation_count"))})
-            except (OSError, EOFError, zlib.error):
-                errors.append(path.name)
+    events, errors, truncated = telemetry_events(days) if rows else ([], [], False)
+    for kind, when, _event_id, data in events:
+        run_id = data.get("run_id")
+        if not isinstance(run_id, str) or run_id not in rows:
+            continue
+        workspace = rows[run_id].get("workspace_name")
+        if workspace and data.get("workspace_name") != workspace:
+            continue
+        if kind == LLM_EVENT:
+            fields = ("stage", "model", "backend", "billing_route", "evidence")
+            values = (data.get("call_purpose"), data.get("model"), data.get("backend"),
+                      data.get("billing_route"), data.get("routing_evidence"))
+            values = tuple(public(value) if isinstance(value, str) else "unknown" for value in values)
+            entry = observed[run_id].setdefault(values, {**dict(zip(fields, values)), "calls": 0})
+            entry["calls"] += 1
+        elif kind == RERANK_EVENT:
+            periods[run_id].add(data, when)
+        elif kind == "dream.run":
+            dreams[run_id]["duration_ms"] = _finite_number(data.get("total_duration_ms"))
+        elif kind == "dream.specialist":
+            dreams[run_id]["specialists"].append({"type": public(data.get("specialist_type")), "duration_ms": _finite_number(data.get("duration_ms")), "conclusions_created": _finite_int(data.get("created_observation_count"))})
     costs = cost_stats(date)
+    efforts = policy_efforts()
     for run_id, row in rows.items():
         row["observed_models"] = list(observed[run_id].values())
         row["rerank_stats"] = periods[run_id].view()
@@ -2881,9 +2999,9 @@ def get_runs(pair: str = "", date: str = ""):
         created = [item["conclusions_created"] for item in dreams[run_id]["specialists"] if item["conclusions_created"] is not None]
         row["dream"]["conclusions_created"] = sum(created) if created else None
         row["cost"] = costs["by_run"].get(json.dumps([row.get("workspace_name"), run_id]))
+        row["deduction_effort"], row["induction_effort"] = _efforts_at(efforts.get(f"{row.get('observer')}/{row.get('observed')}", []), row["started"])
     return {"runs": sorted(rows.values(), key=lambda row: row["started"], reverse=True), "errors": errors,
-            "truncated": bool(budget.truncated) or (log.is_file() and log.stat().st_size > 256000), "days": days}
-
+            "truncated": truncated or (log.is_file() and log.stat().st_size > RUN_LOG_BYTES), "days": days}
 
 
 def load_rates() -> tuple[dict, str | None]:
@@ -3012,97 +3130,147 @@ def estimate_call(kind: str, data: dict, rates: dict, when: str = "") -> dict:
     return result
 
 
+def _call_status(kind: str, data: dict) -> str:
+    outcome = data.get("outcome")
+    if kind == RERANK_EVENT:
+        if outcome is None:
+            return "ok" if data.get("tokens") else "skipped"
+        if outcome in ("reranked", "success"):
+            return "ok"
+        if isinstance(outcome, str) and outcome.startswith(("skipped", "noop")):
+            return "skipped"
+    if outcome in (None, "success"):
+        return "ok"
+    return "cancelled" if outcome == "cancelled" else "failed"
+
+
+def _call_stage(kind: str, data: dict, levels: dict) -> str:
+    """The Models page setting this call belongs to; rerank and embeddings have their own."""
+    if kind == RERANK_EVENT:
+        return "rerank"
+    if kind == EMBEDDING_EVENT:
+        return "embedding"
+    purpose = data.get("call_purpose") if isinstance(data.get("call_purpose"), str) else "unknown"
+    if purpose == "dialectic.answer":
+        return "dialectic." + str(levels.get(data.get("run_id")) or "unknown")
+    return purpose.split(".")[0] if purpose.startswith(("summary.", "deriver.")) else purpose
+
+
+def _call_provider(kind: str, data: dict, configured: dict, models: dict, status: str) -> tuple[str, str]:
+    """Who the call went to, as (provider, model), from the call, else what the run or the settings say."""
+    model = data.get("resolved_model") or data.get("model")
+    model = model if isinstance(model, str) else "unknown"
+    if kind != LLM_EVENT:
+        provider = data.get("provider")
+        return provider if isinstance(provider, str) else "not recorded", model
+    if isinstance(data.get("backend"), str):
+        return data["backend"], model
+    override = configured.get(data.get("run_id")) or ""
+    if status != "ok" and ":" in override and data.get("was_fallback") is not True:
+        return tuple(override.split(":", 1))
+    if data.get("transport") in ("anthropic", "gemini"):
+        return data["transport"], model
+    return models.get(model, "not recorded"), model
+
+
+def _embedding_estimate(data: dict, rates: dict) -> dict:
+    tokens = _finite_int(data.get("input_tokens_estimate"))
+    table = rates.get("embedding")
+    spec = table.get(f"{data.get('provider')}/{data.get('model')}") if isinstance(table, dict) else None
+    price = _finite_number(spec.get("per_million_tokens")) if isinstance(spec, dict) else None
+    amount = tokens * price / 1_000_000 if tokens is not None and price is not None else None
+    return {"billing_route": "api", "estimated_usd": _finite_out(amount), "tokens": tokens, "note": None if amount is not None else "no rate", "route_conflict": False}
+
+
+def _detail_call(kind: str, when: str, data: dict, stage: str, provider: str, model: str, status: str, estimate: dict) -> dict:
+    """One line of a run's call list."""
+    fields = {"time": when, "kind": "rerank" if kind == RERANK_EVENT else "llm", "stage": stage, "provider": provider, "model": model,
+              "route": estimate["billing_route"], "status": status, "usd": estimate["estimated_usd"], "tokens": estimate["tokens"],
+              "note": estimate["note"], "duration_ms": _finite_number(data.get("duration_ms"))}
+    if kind == RERANK_EVENT:
+        fields.update(outcome=data.get("outcome"), caller=data.get("caller"), candidates=_finite_int(data.get("candidates_sent")), results=_finite_int(data.get("results_returned")))
+    else:
+        fields.update(attempt=_finite_int(data.get("attempt")), fallback=data.get("was_fallback") is True, error=data.get("error_class"),
+                      input=_finite_int(data.get("provider_input_tokens")), output=_finite_int(data.get("provider_output_tokens")),
+                      cache_read=_finite_int(data.get("cache_read_tokens")), cache_write=_finite_int(data.get("cache_creation_tokens")))
+    return {key: public(value) if isinstance(value, str) else value for key, value in fields.items()}
+
+
 def cost_stats(date: str = "", run_id: str = "") -> dict:
     days = [date] if date else _utc_days(7)
     rates, rate_error = load_rates()
-    budget = _Budget()
-    rows = {}
+    events, errors, truncated = telemetry_events(days)
+    levels = {data.get("run_id"): data.get("reasoning_level") for kind, _when, _event_id, data in events if kind == "dialectic.completed"}
+    configured = {key: row.get("backend") for key, row in run_records(days).items()}
+    settings, _meta = read_settings()
+    backends = ((settings or {}).get("providers") or {}).get("backends") if isinstance(settings, dict) else None
+    models = {backend.get("model"): name for name, backend in (backends or {}).items() if isinstance(backend, dict)}
+    entries = {}
     by_run = {}
-    seen_ids = set()
-    errors = []
+    calls_list = []
     calls = priced = no_rate = subscription = unknown = 0
     billed = potential = 0.0
     potential_calls = 0
-    for day in days:
-        for suffix in (".jsonl", ".jsonl.gz"):
-            path = telemetry_dir() / f"events-{day}{suffix}"
-            if not path.is_file() or budget.spent():
-                continue
-            try:
-                for raw in _event_lines(path, budget):
-                    if budget.events_left <= 0:
-                        budget.truncated.append("event budget")
-                        break
-                    budget.events_left -= 1
-                    item = _parse_line(raw)
-                    event = item.get("event") if item else None
-                    if not isinstance(event, dict) or event.get("type") not in (RERANK_EVENT, "llm.call.completed"):
-                        continue
-                    data = event.get("data")
-                    if not isinstance(data, dict) or (run_id and data.get("run_id") != run_id):
-                        continue
-                    when = event.get("time") or item.get("received_at") or ""
-                    if not isinstance(when, str) or when[:10] not in days:
-                        continue
-                    event_id = event.get("id")
-                    if isinstance(event_id, str):
-                        if event_id in seen_ids:
-                            continue
-                        seen_ids.add(event_id)
-                    estimate = estimate_call(event["type"], data, rates, when)
-                    route, amount = estimate["billing_route"], estimate["estimated_usd"]
-                    calls += 1
-                    subscription += route == "cli"
-                    unknown += route == "unknown"
-                    no_rate += str(estimate["note"]).startswith("no rate")
-                    if route == "api" and amount is not None:
-                        billed += amount
-                        priced += 1
-                    if route == "unknown" and amount is not None:
-                        potential += amount
-                        potential_calls += 1
-                    stage_key = "caller" if event["type"] == RERANK_EVENT else "call_purpose"
-                    stage = data.get(stage_key) if isinstance(data.get(stage_key), str) else "unknown"
-                    model = data.get("model") if isinstance(data.get("model"), str) else "unknown"
-                    backend = data.get("backend") if isinstance(data.get("backend"), str) else "unknown"
-                    evidence = data.get("routing_evidence") if isinstance(data.get("routing_evidence"), str) else "unknown"
-                    key = (when[:10], stage, event["type"], model, route, backend, evidence)
-                    row = rows.setdefault(key, {"day": key[0], "stage": stage, "kind": event["type"], "model": model, "billing_route": route, "backend": backend, "routing_evidence": evidence,
-                                                "calls": 0, "tokens": 0, "tokens_unknown": 0, "priced_calls": 0, "estimated_usd": 0.0, "notes": []})
-                    row["calls"] += 1
-                    if estimate["tokens"] is None:
-                        row["tokens_unknown"] += 1
-                    else:
-                        row["tokens"] += estimate["tokens"]
-                    if amount is not None:
-                        row["estimated_usd"] += amount
-                        row["priced_calls"] += 1
-                    if estimate["note"] and estimate["note"] not in row["notes"]:
-                        row["notes"].append(estimate["note"])
-                    if estimate["route_conflict"] and "billing route conflicts with CLI rate mapping" not in row["notes"]:
-                        row["notes"].append("billing route conflicts with CLI rate mapping")
-                    rid = data.get("run_id")
-                    if isinstance(rid, str):
-                        run_key = json.dumps([data.get("workspace_name"), rid])
-                        run = by_run.setdefault(run_key, {"estimated_usd": 0.0, "priced_calls": 0, "calls": 0, "subscription_calls": 0, "unknown_route_calls": 0})
-                        run["calls"] += 1
-                        run["subscription_calls"] += route == "cli"
-                        run["unknown_route_calls"] += route == "unknown"
-                        if route == "api" and amount is not None:
-                            run["estimated_usd"] += amount
-                            run["priced_calls"] += 1
-            except (OSError, EOFError, zlib.error):
-                errors.append(path.name)
-    for row in rows.values():
-        row["estimated_usd"] = _finite_out(row["estimated_usd"]) if row["priced_calls"] else None
-        row["tokens"] = _finite_out(row["tokens"]) if row["tokens_unknown"] < row["calls"] else None
+    for kind, when, _event_id, data in events:
+        if kind not in (LLM_EVENT, RERANK_EVENT, EMBEDDING_EVENT) or (run_id and data.get("run_id") != run_id):
+            continue
+        status = _call_status(kind, data)
+        stage = _call_stage(kind, data, levels)
+        provider, model = _call_provider(kind, data, configured, models, status)
+        estimate = _embedding_estimate(data, rates) if kind == EMBEDDING_EVENT else estimate_call(kind, data, rates, when)
+        route, amount = estimate["billing_route"], estimate["estimated_usd"]
+        fallback = data.get("was_fallback") is True
+        rid = data.get("run_id") if isinstance(data.get("run_id"), str) else ""
+        entry = entries.setdefault((stage, provider, model, route, when[:10], rid, status, fallback), [0, 0, 0.0])
+        entry[0] += 1
+        entry[1] += estimate["tokens"] or 0
+        entry[2] += amount or 0
+        run = None
+        if rid:
+            run_key = json.dumps([data.get("workspace_name"), rid])
+            run = by_run.setdefault(run_key, {"estimated_usd": 0.0, "priced_calls": 0, "calls": 0, "subscription_calls": 0, "unknown_route_calls": 0,
+                                              "llm_usd": 0.0, "rerank_usd": 0.0, "rerank_calls": 0, "tokens": 0, "failed": 0, "fallback": 0,
+                                              "embedding_calls": 0, "embedding_tokens": 0})
+        if kind == EMBEDDING_EVENT:
+            if run:
+                run["embedding_calls"] += 1
+                run["embedding_tokens"] += estimate["tokens"] or 0
+            continue
+        calls += 1
+        subscription += route == "cli"
+        unknown += route == "unknown"
+        no_rate += str(estimate["note"]).startswith("no rate")
+        if route == "api" and amount is not None:
+            billed += amount
+            priced += 1
+        if route == "unknown" and amount is not None:
+            potential += amount
+            potential_calls += 1
+        if run_id:
+            calls_list.append(_detail_call(kind, when, data, stage, provider, model, status, estimate))
+        if run:
+            run["calls"] += 1
+            run["subscription_calls"] += route == "cli"
+            run["unknown_route_calls"] += route == "unknown"
+            run["tokens"] += estimate["tokens"] or 0
+            run["failed"] += status in ("failed", "cancelled")
+            run["fallback"] += fallback
+            run["rerank_calls"] += kind == RERANK_EVENT
+            run["rerank_usd" if kind == RERANK_EVENT else "llm_usd"] += amount or 0
+            if route == "api" and amount is not None:
+                run["estimated_usd"] += amount
+                run["priced_calls"] += 1
     for run in by_run.values():
         run["estimated_usd"] = _finite_out(run["estimated_usd"]) if run["priced_calls"] else None
+        run["llm_usd"] = _finite_out(run["llm_usd"])
+        run["rerank_usd"] = _finite_out(run["rerank_usd"])
+    calls_list.sort(key=lambda item: item["time"])
     return {"days": days, "estimated_usd": _finite_out(billed) if priced else None,
             "potential_api_usd": _finite_out(potential) if potential_calls else None,
             "calls": calls, "priced_calls": priced, "no_rate_calls": no_rate, "subscription_calls": subscription,
-            "unknown_route_calls": unknown, "rows": list(rows.values()), "by_run": by_run,
-            "rate_error": rate_error, "errors": errors, "truncated": bool(budget.truncated)}
+            "unknown_route_calls": unknown, "by_run": by_run, "call_list": calls_list,
+            "entries": [[*(public(value) if isinstance(value, str) else value for value in key), *values[:2], _finite_out(values[2])] for key, values in entries.items()],
+            "rate_error": rate_error, "errors": errors, "truncated": truncated}
 
 
 @app.get("/api/cost")

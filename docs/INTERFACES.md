@@ -108,7 +108,7 @@ is refused with 409 when the target file changed since that time. Secret-like st
 | `POST /api/honcho-config/apply` | Restart Honcho's `api` and `deriver` (409 while a model block lacks `model` or `transport`, or the container list does not name exactly one of each). |
 | `GET /api/bridge-status` | Health of the bridges named in Honcho's dream model config: counters and route evidence, no URL or key. |
 | `GET /api/rerank/stats`, `GET /api/rerank/warnings` | The `rerank.call.completed` summary of today and the last 7 UTC days, and the configuration warnings (`callers`, `ef_search`). |
-| `GET /api/runs`, `GET /api/cost` | Completed dreams joined with telemetry; list-price cost estimates from `rates.json`. |
+| `GET /api/runs`, `GET /api/cost` | Completed dreams joined with telemetry; list-price cost estimates from `rates.json`. `/api/cost` returns `entries`, grouped calls as `[stage, provider, model, route, day, run_id, status, fallback, calls, tokens, usd]`; with `run_id` it also returns that run's calls in `call_list`. |
 
 **Files the dashboard writes** (each with a copy in `CONFIG_DIR/backups/` first): `settings.json`, `models.json`,
 the instruction files, Honcho's workspace configuration (through the API, copy as

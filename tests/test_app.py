@@ -6,6 +6,7 @@ live in a temporary directory.
 from __future__ import annotations
 
 import base64
+import gzip
 import importlib.util
 import json
 import os
@@ -1820,7 +1821,7 @@ def test_runs_join_telemetry_by_run_id(client, tmp_path):
         {"id": "actual", "type": "llm.call.completed", "data": {"run_id": "one", "model": "duplicate"}},
         {"type": "llm.call.completed", "data": {"run_id": "two", "model": "stage-route"}},
     ]
-    (telemetry / f"events-{day}.jsonl").write_text("\n".join(json.dumps({"event": {**event, "time": day + "T01:00:00Z"}}) for event in events), encoding="utf-8")
+    (telemetry / f"events-{day}.jsonl").write_text("\n".join(json.dumps({"event": {**event, "time": day + "T01:00:00Z"}}) for event in events) + "\n", encoding="utf-8")
     result = app.get("/api/runs", params={"date": day, "pair": "a/b"}).json()
     rows = {row["run_id"]: row for row in result["runs"]}
     assert rows["one"]["rerank_stats"]["outcomes"] == {"future_outcome": 1, "noop_single": 1}
@@ -1854,13 +1855,117 @@ def test_cost_estimates_keep_unknown_and_subscription_separate(client, tmp_path,
     folder = tmp_path / "telemetry"
     folder.mkdir()
     day = "2026-11-02"
-    (folder / f"events-{day}.jsonl").write_text("\n".join(json.dumps({"event": {"id": str(index), "time": day + "T01:00:00Z", "type": kind, "data": data}}) for index, (kind, data) in enumerate(events)), encoding="utf-8")
+    (folder / f"events-{day}.jsonl").write_text("\n".join(json.dumps({"event": {"id": str(index), "time": day + "T01:00:00Z", "type": kind, "data": data}}) for index, (kind, data) in enumerate(events)) + "\n", encoding="utf-8")
     result = app.get("/api/cost", params={"date": day}).json()
     assert result["estimated_usd"] == pytest.approx(0.0201845)
     assert result["potential_api_usd"] == pytest.approx(0.0001845)
     assert result["no_rate_calls"] == 1 and result["subscription_calls"] == 1
     assert result["unknown_route_calls"] == 1 and result["priced_calls"] == 2
     assert app.get("/api/cost", params={"date": day, "run_id": "absent"}).json()["estimated_usd"] is None
+
+
+def _telemetry_line(index, kind, data, day="2026-11-02"):
+    return json.dumps({"event": {"id": str(index), "time": day + "T01:00:00Z", "type": kind, "data": data}}) + "\n"
+
+
+def test_cost_entries_cover_every_stage_with_status_and_fallback(client, tmp_path, monkeypatch):
+    app, _settings = client
+    rates = tmp_path / "rates.json"
+    rates.write_text(json.dumps({"llm": {"flash": {"input_per_million": 1, "output_per_million": 2}}, "rerank": {"voyage/r": {"per_million_tokens": 1}}}), encoding="utf-8")
+    monkeypatch.setenv("RATES_FILE", str(rates))
+    day = "2026-11-02"
+    (tmp_path / "runs.log").write_text(json.dumps({"run_id": "dream", "observer": "a", "observed": "a", "started": day + "T00:59:00Z", "backend": "openai:sol"}) + "\n", encoding="utf-8")
+    usage = {"provider_input_tokens": 1000, "provider_output_tokens": 100, "transport": "openai"}
+    events = [
+        ("llm.call.completed", {"run_id": "dream", "call_purpose": "dream.deduction", "model": "stage-route", "outcome": "error", "attempt": 1, "error_class": "UpstreamLLMError"}),
+        ("llm.call.completed", {**usage, "run_id": "dream", "call_purpose": "dream.deduction", "model": "flash", "outcome": "success", "attempt": 3, "was_fallback": True}),
+        ("rerank.call.completed", {"run_id": "dream", "caller": "dream", "provider": "voyage", "model": "r", "tokens": 1000, "outcome": "reranked"}),
+        ("rerank.call.completed", {"run_id": "dream", "caller": "dream", "provider": "voyage", "model": "r", "tokens": None, "outcome": "skipped_cap"}),
+        ("embedding.call.completed", {"run_id": "dream", "provider": "openai", "model": "e", "input_tokens_estimate": 50, "outcome": "success"}),
+        ("llm.call.completed", {**usage, "run_id": "question", "call_purpose": "dialectic.answer", "model": "flash", "outcome": "cancelled", "billing_route": "api"}),
+        ("dialectic.completed", {"run_id": "question", "reasoning_level": "high"}),
+        ("llm.call.completed", {**usage, "call_purpose": "summary.short", "model": "flash", "outcome": "success", "billing_route": "api"}),
+        ("llm.call.completed", {**usage, "call_purpose": "deriver.representation", "model": "flash", "billing_route": "cli"}),
+    ]
+    folder = tmp_path / "telemetry"
+    folder.mkdir()
+    (folder / f"events-{day}.jsonl").write_text("".join(_telemetry_line(index, kind, data) for index, (kind, data) in enumerate(events)), encoding="utf-8")
+    result = app.get("/api/cost", params={"date": day}).json()
+    entries = {tuple(entry[:8]): entry[8:] for entry in result["entries"]}
+    assert ("dream.deduction", "openai", "sol", "unknown", day, "dream", "failed", False) in entries
+    assert ("dream.deduction", "not recorded", "flash", "unknown", day, "dream", "ok", True) in entries
+    assert ("rerank", "voyage", "r", "api", day, "dream", "skipped", False) in entries
+    assert entries[("rerank", "voyage", "r", "api", day, "dream", "ok", False)] == [1, 1000, pytest.approx(0.001)]
+    assert ("embedding", "openai", "e", "api", day, "dream", "ok", False) in entries
+    assert ("dialectic.high", "not recorded", "flash", "api", day, "question", "cancelled", False) in entries
+    assert ("summary", "not recorded", "flash", "api", day, "", "ok", False) in entries
+    assert ("deriver", "not recorded", "flash", "cli", day, "", "ok", False) in entries
+    assert result["calls"] == 7 and result["call_list"] == []
+    run = result["by_run"][json.dumps([None, "dream"])]
+    assert run["failed"] == 1 and run["fallback"] == 1 and run["rerank_calls"] == 2 and run["calls"] == 4
+    assert run["rerank_usd"] == pytest.approx(0.001) and run["llm_usd"] == pytest.approx(0.0012)
+    assert run["embedding_calls"] == 1 and run["embedding_tokens"] == 50
+    calls = app.get("/api/cost", params={"run_id": "dream", "date": day}).json()["call_list"]
+    assert [call["kind"] for call in calls] == ["llm", "llm", "rerank", "rerank"]
+    assert calls[1]["usd"] == pytest.approx(0.0012) and calls[1]["attempt"] == 3 and calls[1]["fallback"] is True
+    assert calls[0]["status"] == "failed" and calls[0]["error"] == "UpstreamLLMError"
+    assert calls[2]["usd"] == pytest.approx(0.001) and calls[3]["outcome"] == "skipped_cap"
+
+
+def test_runs_carry_the_efforts_the_policy_log_recorded(client, tmp_path):
+    app, _settings = client
+    day = "2026-11-02"
+    record = {"run_id": "one", "observer": "a", "observed": "b", "started": day + "T01:00:01Z"}
+    (tmp_path / "runs.log").write_text(json.dumps(record) + "\n", encoding="utf-8")
+    lines = [f'{day} 00:00:00Z a/b <- a {{"deduction_effort": "low"}} mode=scheduler backend=codex gate=ran',
+             f'{day} 01:00:00Z a/b <- a {{"deduction_effort": "high", "induction_effort": "max"}} mode=scheduler backend=codex gate=ran',
+             f'{day} 02:00:00Z a/b <- a {{"deduction_effort": "none"}} mode=scheduler backend=codex gate=ran']
+    log = Path(os.environ["POLICY_LOG"])
+    log.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    row = app.get("/api/runs", params={"date": day}).json()["runs"][0]
+    assert row["deduction_effort"] == "high" and row["induction_effort"] == "max"
+
+
+def test_events_are_read_once_then_only_what_is_new(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEMETRY_DIR", str(tmp_path))
+    day = "2026-11-02"
+    path = tmp_path / f"events-{day}.jsonl"
+    keep = _telemetry_line(1, "llm.call.completed", {"model": "m", "secret_field": "dropped"})
+    path.write_text(keep + _telemetry_line(2, "trace.content", {"model": "ignored"}), encoding="utf-8")
+    events, errors, truncated = dashboard.telemetry_events([day])
+    assert [event[2] for event in events] == ["1"] and errors == [] and truncated is False
+    assert "secret_field" not in events[0][3]
+    read = []
+    real = dashboard._event_lines
+    def counted(*args):
+        for raw in real(*args):
+            read.append(raw)
+            yield raw
+    monkeypatch.setattr(dashboard, "_event_lines", counted)
+    assert len(dashboard.telemetry_events([day])[0]) == 1 and read == []
+    whole = _telemetry_line(3, "rerank.call.completed", {"tokens": 1})
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(whole + whole[:20])
+    assert [event[2] for event in dashboard.telemetry_events([day])[0]] == ["1", "3"]
+    assert len(read) == 1
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(whole[20:].replace('"3"', '"4"'))
+    assert len(dashboard.telemetry_events([day])[0]) == 2 and len(read) == 2
+    path.write_text(keep, encoding="utf-8")
+    assert [event[2] for event in dashboard.telemetry_events([day])[0]] == ["1"]
+    dashboard._event_files.clear()
+
+
+def test_a_gzipped_day_is_read_once(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEMETRY_DIR", str(tmp_path))
+    day = "2026-11-02"
+    path = tmp_path / f"events-{day}.jsonl.gz"
+    path.write_bytes(gzip.compress(_telemetry_line(1, "dream.run", {"run_id": "r"}).encode()))
+    assert len(dashboard.telemetry_events([day])[0]) == 1
+    real = dashboard._event_lines
+    monkeypatch.setattr(dashboard, "_event_lines", lambda *args: pytest.fail("read twice") or real(*args))
+    assert len(dashboard.telemetry_events([day])[0]) == 1
+    dashboard._event_files.clear()
 
 
 @pytest.mark.parametrize("transport,pin,read,expected", [

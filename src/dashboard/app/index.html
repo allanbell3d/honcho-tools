@@ -106,11 +106,41 @@ footer .grow { flex:1; }
 .diff td.b { background:var(--del); } .diff td.a { background:var(--add); }
 .mono { font-family:var(--mono); }
 details > summary { cursor:pointer; color:var(--accent); margin:8px 0; }
+main:has(table.cr) { max-width:none; }
+.amber { color:var(--amber); }
+.stats.cr-cards { margin-bottom:14px; }
+table.cr { font-variant-numeric:tabular-nums; }
+table.cr th, table.cr td { text-align:right; white-space:nowrap; padding:6px 8px; }
+table.cr th.left, table.cr td.left { text-align:left; }
+table.cr th:first-child, table.cr td:first-child { text-align:left; position:sticky; left:0; background:var(--page); z-index:1; }
+table.cr th:first-child { background:var(--head); }
+table.cr th button { all:unset; cursor:pointer; display:block; width:100%; }
+table.cr tr.cr-l0 td { font-weight:600; }
+table.cr tr.cr-click { cursor:pointer; }
+table.cr tr.cr-click:hover td { background:var(--hover); }
+table.cr tr.cr-total td { font-weight:700; background:var(--head); border-bottom:0; }
+table.cr tr.cr-detail > td { position:static; background:var(--hover); text-align:left; white-space:normal; padding:10px; }
+.cr-arrow { display:inline-block; width:14px; color:var(--muted); }
+.cr-tag { display:inline-block; background:var(--soft); border-radius:4px; padding:0 6px; margin-left:6px; font-size:11px; font-weight:500; }
+.cr-tag.amber { background:var(--amber-bg); } .cr-tag.bad { background:var(--bad-bg); } .cr-tag.ok { background:var(--add); }
+.cr-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; max-width:calc(100vw - 220px); position:sticky; left:10px; }
+.cr-grid section { background:var(--page); border:1px solid var(--line); border-radius:6px; padding:8px 10px; }
+.cr-grid section.wide { grid-column:1 / -1; }
+.cr-grid h3 { margin:0 0 6px; font-size:13px; }
+.cr-grid p { margin:2px 0; display:flex; justify-content:space-between; gap:12px; }
+.cr-grid p span:first-child { color:var(--muted); }
+.cr-grid p span:last-child { text-align:right; overflow-wrap:anywhere; }
 @media (max-width:1100px) {
   .layout { display:block; }
   nav { width:auto; display:flex; overflow-x:auto; padding:6px; border-right:0; border-bottom:1px solid var(--line); }
   nav a { flex:none; }
   main { padding:12px 12px 70px; }
+  .cr-grid { max-width:calc(100vw - 60px); }
+}
+@media (max-width:700px) {
+  .cr-filters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .cr-filters select, .cr-filters input { width:100%; }
+  table.cr td:first-child { max-width:190px; white-space:normal; }
 }
 </style>
 </head>
@@ -1405,34 +1435,231 @@ function pageRerank() {
     rerankStatsBox(),
   ];
 }
-async function refreshRuns() {
-  const params = new URLSearchParams({ pair: S.runsPair || "", date: S.runsDate || "" });
-  try { S.runs = await api("/api/runs?" + params); render(); } catch (e) { note(e.message, true); }
+// ---------- Runs and Cost ----------
+const CR = { open: new Set(), openRun: null, calls: {}, byId: {},
+  cost: { sort: "usd", dir: -1, day: "", stage: "", provider: "", model: "", route: "", status: "", pair: "", byDay: true },
+  runs: { sort: "started", dir: -1, day: "", pair: "", model: "", state: "", rerank: "", text: "" } };
+const CR_ROUTES = { api: "API", cli: "subscription", unknown: "not recorded" };
+const CR_STATUS = { ok: "OK", failed: "Failed", skipped: "Skipped", cancelled: "Cancelled" };
+// One line for each place a model can be set: the Models page's rows, then rerank and embeddings.
+const crStages = () => ({ ...Object.fromEntries(TASKS.map((t) => [t.stage, t.label])), "dialectic.unknown": "Questions · level not recorded", rerank: "Rerank", embedding: "Embeddings" });
+const crNum = (v) => Number(v || 0).toLocaleString("en-US");
+const crUsd = (v) => (v >= 0.01 || !v ? "$" + Number(v || 0).toFixed(2) : v < 0.0001 ? "<$0.0001" : "$" + Number(v).toFixed(4));
+const crTokens = (v) => (!v ? "0" : v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : v >= 1e3 ? (v / 1e3).toFixed(1) + "k" : String(v));
+const crSecs = (ms) => { if (ms == null) return "unknown"; if (ms < 1000) return Math.round(ms) + " ms"; const s = Math.round(ms / 1000); return s >= 60 ? Math.floor(s / 60) + "m " + (s % 60) + "s" : s + "s"; };
+const crUniq = (list) => [...new Set(list.filter((v) => v !== "" && v != null))].sort();
+const crCount = (value, cls) => h("span", { class: value ? cls : "hint" }, crNum(value));
+const crClear = (view, keys) => () => { for (const key of keys) view[key] = ""; render(); };
+function crPick(label, key, view, options, names) {
+  return h("label", {}, label, h("select", { onchange: (e) => { view[key] = e.target.value; render(); } },
+    h("option", { value: "" }, "All"),
+    options.map((value) => { const o = h("option", { value }, (names && names[value]) || value); if (view[key] === value) o.selected = true; return o; })));
+}
+function crSortHead(cols, view, leftKeys, firstDir) {
+  return h("tr", {}, cols.map(([key, label]) => h("th", { class: leftKeys.includes(key) ? "left" : null }, h("button", { onclick: () => { if (view.sort === key) view.dir = -view.dir; else { view.sort = key; view.dir = firstDir(key); } render(); } }, label + (view.sort === key ? (view.dir < 0 ? " ↓" : " ↑") : "")))));
+}
+function crAggregate(rows) {
+  const a = { calls: 0, ok: 0, failed: 0, skipped: 0, cancelled: 0, fallback: 0, tok: 0, subTok: 0, usd: 0, unknownUsd: 0, runs: new Set(), noRate: false, routes: new Set() };
+  for (const r of rows) {
+    a.calls += r.n; a[r.status] += r.n; a.tok += r.tok; a.usd += r.usd;
+    if (r.fallback) a.fallback += r.n;
+    if (r.route === "cli") a.subTok += r.tok;
+    if (r.route === "unknown") a.unknownUsd += r.usd;
+    if (r.run) a.runs.add(r.run);
+    if (r.stage === "embedding" && !r.usd) a.noRate = true;
+    a.routes.add(r.route);
+  }
+  return a;
+}
+function crCostCell(a) {
+  if (a.noRate) return h("span", { class: "hint", title: "rates.json has no price for these embeddings" }, "no rate");
+  if (a.usd) return crUsd(a.usd);
+  if (a.routes.size === 1 && a.routes.has("cli")) return h("span", {}, "$0.00 ", h("span", { class: "hint" }, "subscription"));
+  if (a.calls && a.skipped === a.calls) return h("span", {}, "$0.00 ", h("span", { class: "hint" }, "skipped"));
+  return "$0.00";
+}
+const CR_COST_COLS = [["name", "Stage"], ["runs", "Runs"], ["calls", "Calls"], ["ok", "OK"], ["failed", "Failed"], ["skipped", "Skipped"], ["fallback", "Fallback"], ["tok", "Tokens"], ["usd", "API cost"]];
+const crSortValue = (item, key) => (key === "name" ? item.label : key === "runs" ? item.a.runs.size : key === "failed" ? item.a.failed + item.a.cancelled : item.a[key]);
+function crCostRow(item, depth, key, expands) {
+  const a = item.a, open = CR.open.has(key);
+  return h("tr", { class: "cr-l" + depth + (expands ? " cr-click" : ""), onclick: expands ? () => { open ? CR.open.delete(key) : CR.open.add(key); render(); } : null },
+    h("td", { style: "padding-left:" + (8 + depth * 18) + "px" }, h("span", { class: "cr-arrow" }, expands ? (open ? "▾" : "▸") : ""), item.label, item.tags || null),
+    h("td", {}, a.runs.size ? crNum(a.runs.size) : h("span", { class: "hint" }, "–")), h("td", {}, crNum(a.calls)), h("td", {}, crNum(a.ok)),
+    h("td", {}, crCount(a.failed + a.cancelled, "bad")), h("td", {}, crCount(a.skipped, "amber")), h("td", {}, crCount(a.fallback, "amber")),
+    h("td", {}, (item.estimated ? "~" : "") + crTokens(a.tok)), h("td", {}, crCostCell(a)));
+}
+function crGroup(rows, keyOf) { const groups = new Map(); for (const r of rows) { const k = keyOf(r); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); } return groups; }
+function crWalk(rows, levels, depth, path, out, empty) {
+  const [level, ...rest] = levels, { sort, dir } = CR.cost;
+  const items = [...crGroup(rows, level.key)].map(([key, list]) => ({ key, list, a: crAggregate(list), ...level.show(key, list) })).concat(empty || []);
+  items.sort((x, y) => { const a = crSortValue(x, sort), b = crSortValue(y, sort); return (typeof a === "string" ? a.localeCompare(b) : a - b) * dir; });
+  for (const item of items) {
+    const here = path + "|" + item.key, detail = level.detail ? level.detail(item.key) : null, expands = item.a.calls > 0 && (rest.length > 0 || detail !== null);
+    out.push(crCostRow(item, depth, here, expands));
+    if (!CR.open.has(here) || !expands) continue;
+    if (rest.length) crWalk(item.list, rest, depth + 1, here, out);
+    else out.push(detail);
+  }
+}
+function crLevels() {
+  const names = crStages();
+  const stage = { key: (r) => r.stage, show: (k) => ({ label: names[k] || k, estimated: k === "embedding" }) };
+  const provider = { key: (r) => [r.provider, r.model, r.route].join("\n"), show: (k, list) => {
+    const [name, model, route] = k.split("\n");
+    return { label: name + " / " + model, tags: [h("span", { class: "cr-tag" }, CR_ROUTES[route] || route), list.some((r) => r.fallback) ? h("span", { class: "cr-tag amber" }, "fallback") : null, list.every((r) => r.status === "failed") ? h("span", { class: "cr-tag bad" }, "all failed") : null] };
+  } };
+  const day = { key: (r) => r.day, show: (k) => ({ label: k }) };
+  const run = { key: (r) => r.run || "none", show: (k) => {
+    const info = CR.byId[k];
+    return { label: k === "none" ? "No run ID" : info ? whenUtc(info.started).slice(5, 16) + " · " + info.observer + " → " + info.observed : "Run " + k.slice(0, 8) };
+  }, detail: (k) => (k === "none" ? null : crRunDetail(k, CR_COST_COLS.length)) };
+  return CR.cost.byDay ? [stage, provider, day, run] : [stage, provider, run];
+}
+function pageCost() {
+  const f = CR.cost, data = S.cost || {}, names = crStages();
+  CR.byId = Object.fromEntries(((S.runs || {}).runs || []).map((r) => [r.run_id, r]));
+  const pairOf = (id) => { const r = CR.byId[id]; return r ? r.observer + " → " + r.observed : ""; };
+  const all = (data.entries || []).map(([stage, provider, model, route, day, run, status, fallback, n, tok, cost]) => ({ stage, provider, model, route, day, run, status, fallback, n, tok, usd: cost || 0 }));
+  const rows = all.filter((r) => (!f.day || r.day === f.day) && (!f.stage || r.stage === f.stage) && (!f.provider || r.provider === f.provider) && (!f.model || r.model === f.model) && (!f.route || r.route === f.route) && (!f.status || r.status === f.status) && (!f.pair || pairOf(r.run) === f.pair));
+  const t = crAggregate(rows), body = [];
+  const filtered = f.day || f.stage || f.provider || f.model || f.route || f.status || f.pair;
+  const seen = new Set(rows.map((r) => r.stage));
+  const empty = filtered ? [] : TASKS.filter((task) => !seen.has(task.stage)).map((task) => ({ key: task.stage, list: [], a: crAggregate([]), label: task.label, tags: [h("span", { class: "cr-tag" }, "none recorded")] }));
+  crWalk(rows, crLevels(), 0, "", body, empty);
+  const parts = t.ok + t.failed + t.skipped + t.cancelled, failed = t.failed + t.cancelled;
+  const pairs = crUniq(Object.values(CR.byId).map((r) => r.observer + " → " + r.observed));
+  return [h("h1", {}, "Cost"), h("p", { class: "lead" }, "List-price estimates from telemetry tokens and rates.json, one line for each place a model is set. Failed counts every failed attempt, including those a retry or fallback recovered. Days are UTC."),
+    data.rate_error ? h("p", { class: "warn" }, data.rate_error) : null,
+    data.truncated || (data.errors || []).length ? h("p", { class: "warn" }, "Partial coverage: telemetry scan limit or unreadable files.") : null,
+    h("div", { class: "box" }, h("div", { class: "in row cr-filters" },
+      crPick("Day (UTC)", "day", f, crUniq(all.map((r) => r.day)).reverse()),
+      crPick("Stage", "stage", f, Object.keys(names), names),
+      crPick("Provider", "provider", f, crUniq(all.map((r) => r.provider))),
+      crPick("Model", "model", f, crUniq(all.map((r) => r.model))),
+      crPick("Billing", "route", f, Object.keys(CR_ROUTES), CR_ROUTES),
+      crPick("Status", "status", f, Object.keys(CR_STATUS), CR_STATUS),
+      crPick("Pair (dreams only)", "pair", f, pairs),
+      h("label", {}, "Show day level", h("input", { type: "checkbox", checked: f.byDay, onchange: (e) => { f.byDay = e.target.checked; render(); } })),
+      h("button", { onclick: crClear(f, ["day", "stage", "provider", "model", "route", "status", "pair"]) }, "Clear"))),
+    h("div", { class: "stats cr-cards" }, [["API cost", crUsd(t.usd)], ["Calls", crNum(t.calls)], ["Failed", crNum(failed), "bad"], ["Skipped", crNum(t.skipped), "amber"], ["Fallback calls", crNum(t.fallback), "amber"], ["Subscription tokens", crTokens(t.subTok)]].map(([label, value, cls]) => h("div", { class: "stat" }, h("div", { class: "k" }, label), h("div", { class: "v " + (cls || "") }, value)))),
+    h("div", { class: "box tw" }, h("table", { class: "cr" }, h("thead", {}, crSortHead(CR_COST_COLS, f, ["name"], (key) => (key === "name" ? 1 : -1))),
+      h("tbody", {}, body, h("tr", { class: "cr-total" }, h("td", {}, "Total"), h("td", {}, crNum(t.runs.size)), h("td", {}, crNum(t.calls)), h("td", {}, crNum(t.ok)), h("td", {}, crNum(failed)), h("td", {}, crNum(t.skipped)), h("td", {}, crNum(t.fallback)), h("td", {}, crTokens(t.tok)), h("td", {}, crUsd(t.usd)))))),
+    h("p", { class: parts === t.calls ? "ok" : "bad" }, (parts === t.calls ? "✓ " : "✗ ") + crNum(t.ok) + " OK + " + crNum(failed) + " failed + " + crNum(t.skipped) + " skipped = " + crNum(parts) + " of " + crNum(t.calls) + " calls"),
+    t.unknownUsd ? h("p", { class: "hint" }, crUsd(t.unknownUsd) + " of the API cost is on calls with no billing route recorded, so it is a potential cost.") : null,
+    h("p", { class: "hint" }, "Embedding tokens are Honcho's estimates. Peer card refresh shows none recorded because telemetry does not mark it: a refresh counts under Dream deduction and Dream induction.")];
+}
+
+const crAnswered = (r) => (r.observed_models || []).filter((m) => m.model !== "stage-route");
+const crSearches = (r) => Object.values((r.rerank_stats || {}).outcomes || {}).reduce((a, b) => a + b, 0);
+const crReranked = (r) => ((r.rerank_stats || {}).outcomes || {}).reranked || 0;
+function crRerankState(r) { const n = crSearches(r), done = crReranked(r); return !n ? "none-needed" : done === n ? "all" : done ? "part" : "none"; }
+const crRunState = (r) => { const c = r.cost || {}; return c.fallback ? "fallback" : c.failed ? "failures" : "clean"; };
+const crRunUsd = (r) => { const c = r.cost || {}; return (c.llm_usd || 0) + (c.rerank_usd || 0); };
+function crRunModels(r) {
+  const direct = crUniq(crAnswered(r).map((m) => m.model));
+  const configured = (r.backend || "").includes(":") ? r.backend.split(":")[1] : null;
+  return configured && (r.cost || {}).fallback ? configured + " → " + direct.filter((m) => m !== configured).join(", ") : direct.join(", ") || "not recorded";
+}
+function crEffort(value, stage, backend) {
+  if (value) return value;
+  if (!S.settings) return modelDefault("");
+  return modelDefault((backend || "").includes(":") ? backendEffort(backend) : stageEffort(stage) || stageBackendEffort(stage));
+}
+const crLine = (label, value) => h("p", {}, h("span", {}, label), h("span", {}, value == null ? "unknown" : String(value)));
+function crCallCost(call) {
+  if (call.usd != null) return call.usd ? crUsd(call.usd) : "$0.00";
+  if (call.route === "cli") return h("span", {}, "$0.00 ", h("span", { class: "hint" }, "subscription"));
+  if (call.status === "skipped") return h("span", {}, "$0.00 ", h("span", { class: "hint" }, "skipped"));
+  return h("span", { class: "hint", title: call.note || "" }, call.status === "ok" ? call.note || "unknown" : "no usage reported");
+}
+function crCallList(id) {
+  if (CR.calls[id] === undefined) {
+    CR.calls[id] = null;
+    api("/api/cost?" + new URLSearchParams({ run_id: id })).then((d) => { CR.calls[id] = d.call_list || []; render(); }).catch((e) => { delete CR.calls[id]; note(e.message, true); });
+  }
+  const calls = CR.calls[id], names = crStages();
+  if (!calls) return h("p", { class: "hint" }, "Loading calls…");
+  if (!calls.length) return h("p", { class: "hint" }, "No calls in telemetry.");
+  const head = ["Time (UTC)", "Stage", "Model", "Attempt", "Status", "Cost", "Input", "Output", "Cache read", "Cache write", "Duration"];
+  return h("div", { class: "tw" }, h("table", { class: "cr" }, h("thead", {}, h("tr", {}, head.map((label, index) => h("th", { class: index < 3 || index === 4 ? "left" : null }, label)))),
+    h("tbody", {}, calls.map((c) => h("tr", {}, h("td", {}, c.time.slice(11, 19)), h("td", { class: "left" }, names[c.stage] || c.stage), h("td", { class: "left" }, c.provider + " / " + c.model, c.fallback ? h("span", { class: "cr-tag amber" }, "fallback") : null),
+      h("td", {}, c.attempt ?? "–"),
+      h("td", { class: "left" }, h("span", { class: c.status === "ok" ? "" : c.status === "skipped" ? "amber" : "bad" }, c.kind === "rerank" ? c.outcome || CR_STATUS[c.status] : CR_STATUS[c.status]), c.error ? h("span", { class: "hint" }, " " + c.error) : null),
+      h("td", {}, crCallCost(c)),
+      h("td", {}, c.kind === "rerank" ? (c.tokens == null ? "–" : crNum(c.tokens)) : crNum(c.input)), h("td", {}, c.kind === "rerank" ? "–" : crNum(c.output)),
+      h("td", {}, c.kind === "rerank" ? "–" : crNum(c.cache_read)), h("td", {}, c.kind === "rerank" ? "–" : crNum(c.cache_write)),
+      h("td", {}, crSecs(c.duration_ms)))))));
+}
+function crRunDetail(id, span) {
+  const r = CR.byId[id], cost = (r && r.cost) || {};
+  const sections = [];
+  if (r) {
+    const stats = r.rerank_stats || {}, durations = stats.duration_ms || {}, dream = r.dream || {}, ms = (v) => (v == null ? "unknown" : Math.round(v) + " ms");
+    const names = crStages(), models = crAnswered(r);
+    sections.push(
+      h("section", {}, h("h3", {}, "Run"), crLine("Run ID", r.run_id), crLine("Started", r.started), crLine("Finished", r.finished), crLine("Mode", r.mode), crLine("Settings from", r.source)),
+      h("section", {}, h("h3", {}, "Cost"), crLine("Model calls", crUsd(cost.llm_usd)), crLine("Rerank", crUsd(cost.rerank_usd) + " · " + crNum(cost.rerank_calls) + " calls"), crLine("Embeddings", crNum(cost.embedding_calls) + " calls · no rate"), crLine("Total", crUsd(crRunUsd(r))), crLine("Tokens", crTokens(cost.tokens))),
+      h("section", {}, h("h3", {}, "Passes"), (dream.specialists || []).length ? dream.specialists.map((s) => crLine(s.type, crSecs(s.duration_ms) + " · " + (s.conclusions_created ?? "?") + " conclusions")) : h("span", { class: "hint" }, "No pass telemetry"), crLine("Total conclusions", dream.conclusions_created)),
+      h("section", {}, h("h3", {}, "Settings used"), crLine("Configured model", r.backend), crLine("Brief", r.brief), crLine("Deduction rounds", r.deduction_rounds), crLine("Induction rounds", r.induction_rounds), crLine("Deduction effort", crEffort(r.deduction_effort, "dream.deduction", r.backend)), crLine("Induction effort", crEffort(r.induction_effort, "dream.induction", r.backend))),
+      h("section", {}, h("h3", {}, "Models that answered"), models.length ? models.map((m) => crLine(names[m.stage] || m.stage, (m.backend === "unknown" ? "" : m.backend + " / ") + m.model + " · " + m.calls + " calls")) : h("span", { class: "hint" }, "Not recorded"), cost.fallback ? crLine("Fallback calls", cost.fallback) : null),
+      h("section", {}, h("h3", {}, "Rerank"), Object.entries(stats.outcomes || {}).map(([name, count]) => crLine(name, count)), crLine("Cost", crUsd(cost.rerank_usd)), crLine("Tokens", stats.tokens), crLine("Latency p50 / p95", ms(durations.p50) + " / " + ms(durations.p95)), crLine("Daily cap at the time", (r.rerank || {}).daily_request_cap)));
+  }
+  sections.push(h("section", { class: "wide" }, h("h3", {}, "Calls"), crCallList(id)));
+  return h("tr", { class: "cr-detail" }, h("td", { colspan: span }, h("div", { class: "cr-grid" }, sections)));
+}
+const CR_RUN_COLS = [["started", "Started (UTC)"], ["pair", "Pair"], ["state", "Status"], ["usd", "API cost"], ["failed", "Failed"], ["duration", "Duration"], ["model", "Model"], ["deduction", "Deduction effort"], ["induction", "Induction effort"], ["rerank", "Reranked"], ["conclusions", "Conclusions"], ["tokens", "Tokens"]];
+function crRunValue(r, key) {
+  const cost = r.cost || {}, dream = r.dream || {};
+  switch (key) {
+    case "started": return r.started;
+    case "pair": return r.observer + " → " + r.observed;
+    case "state": return crRunState(r);
+    case "duration": return dream.duration_ms ?? -1;
+    case "model": return crRunModels(r);
+    case "deduction": return r.deduction_effort || "";
+    case "induction": return r.induction_effort || "";
+    case "rerank": return crSearches(r) ? crReranked(r) / crSearches(r) : -1;
+    case "conclusions": return dream.conclusions_created ?? -1;
+    case "tokens": return cost.tokens || 0;
+    case "usd": return crRunUsd(r);
+    default: return cost.failed || 0;
+  }
 }
 function pageRuns() {
-  const data = S.runs || {}, rows = data.runs || [];
-  const ms = (value) => value == null ? "unknown" : Math.round(value) + " ms";
-  return [h("h1", {}, "Runs"), h("p", { class: "lead" }, "Completed dreams and the settings each used, joined to telemetry by run ID. Times and dates are UTC. Missing telemetry is unknown; counts may be sampled."),
-    h("div", { class: "row" },
-      h("label", {}, "Pair (observer/observed)", h("input", { value: S.runsPair || "", onchange: (e) => { S.runsPair = e.target.value; refreshRuns(); } })),
-      h("label", {}, "Date (blank: last 7 days)", h("input", { type: "date", value: S.runsDate || "", onchange: (e) => { S.runsDate = e.target.value; refreshRuns(); } })),
-      h("button", { onclick: refreshRuns }, "Refresh")),
+  const f = CR.runs, data = S.runs || {}, all = data.runs || [], text = f.text.toLowerCase();
+  CR.byId = Object.fromEntries(all.map((r) => [r.run_id, r]));
+  const pairOf = (r) => r.observer + " → " + r.observed;
+  const rows = all.filter((r) => (!f.day || r.started.startsWith(f.day)) && (!f.pair || pairOf(r) === f.pair) && (!f.model || crRunModels(r).includes(f.model)) && (!f.state || crRunState(r) === f.state) && (!f.rerank || crRerankState(r) === f.rerank) && (!text || (pairOf(r) + " " + r.run_id).toLowerCase().includes(text)));
+  rows.sort((x, y) => { const a = crRunValue(x, f.sort), b = crRunValue(y, f.sort); return (typeof a === "string" ? a.localeCompare(String(b)) : a - b) * f.dir; });
+  const body = [];
+  for (const r of rows) {
+    const open = CR.openRun === r.run_id, state = crRunState(r), n = crSearches(r), rerank = crRerankState(r), cost = r.cost || {}, dream = r.dream || {};
+    body.push(h("tr", { class: "cr-click", onclick: () => { CR.openRun = open ? null : r.run_id; render(); } },
+      h("td", {}, h("span", { class: "cr-arrow" }, open ? "▾" : "▸"), whenUtc(r.started).slice(5, 16)),
+      h("td", { class: "left" }, pairOf(r)),
+      h("td", { class: "left" }, h("span", { class: "cr-tag " + (state === "clean" ? "ok" : state === "fallback" ? "amber" : "bad") }, { clean: "Clean", fallback: "Fallback", failures: "Failures" }[state])),
+      h("td", {}, crUsd(crRunUsd(r))), h("td", {}, crCount(cost.failed, "bad")),
+      h("td", {}, crSecs(dream.duration_ms)), h("td", { class: "left" }, crRunModels(r)),
+      h("td", { class: "left" }, crEffort(r.deduction_effort, "dream.deduction", r.backend)), h("td", { class: "left" }, crEffort(r.induction_effort, "dream.induction", r.backend)),
+      h("td", {}, h("span", { class: rerank === "none" || rerank === "part" ? "amber" : "" }, n ? crReranked(r) + " / " + n : "–")),
+      h("td", {}, dream.conclusions_created ?? "unknown"), h("td", {}, crTokens(cost.tokens))));
+    if (open) body.push(crRunDetail(r.run_id, CR_RUN_COLS.length));
+  }
+  const notClean = rows.filter((r) => crRunState(r) !== "clean").length, skipped = rows.filter((r) => ["part", "none"].includes(crRerankState(r))).length;
+  return [h("h1", {}, "Runs"), h("p", { class: "lead" }, "Completed dreams and the settings each used, joined to telemetry by run ID. Click a run for its passes, costs and every call. Times are UTC."),
     data.truncated ? h("p", { class: "warn" }, "Partial results: a log or telemetry read limit was reached.") : null,
-    data.errors && data.errors.length ? h("p", { class: "warn" }, "Some telemetry files could not be read.") : null,
-    h("div", { class: "box tw" }, h("table", {},
-      h("thead", {}, h("tr", {}, ["Started", "Pair / run", "Settings used", "Rerank outcomes", "Tokens", "p50 / p95", "Dream duration", "Conclusions created", "Known API estimate"].map((label) => h("th", {}, label)))),
-      h("tbody", {}, rows.map((row) => {
-        const stats = row.rerank_stats || {}, dream = row.dream || {};
-        const summary = { mode: row.mode, source: row.source, configured_fallback_backend: row.backend, stage_backends: row.stage_backends, brief: row.brief, deduction_rounds: row.deduction_rounds, induction_rounds: row.induction_rounds, rerank: row.rerank };
-        return h("tr", {}, h("td", {}, whenUtc(row.started)), h("td", {}, row.observer + " → " + row.observed, h("div", { class: "mono hint" }, row.run_id)),
-          h("td", {}, h("details", {}, h("summary", {}, "Configured fallback / stage aliases"), h("pre", {}, JSON.stringify(summary, null, 2))), h("div", { class: "hint" }, "Observed model / backend / billing (telemetry):"), (row.observed_models || []).length ? row.observed_models.map((m) => h("div", {}, m.stage + ": " + m.model + " / " + m.backend + " / " + m.billing_route + " · " + m.calls + " calls (" + m.evidence + ")")) : h("div", { class: "hint" }, "unknown; historical aliases do not identify the upstream model")),
-          h("td", {}, Object.entries(stats.outcomes || {}).map(([name, count]) => h("div", {}, name + ": " + count))),
-          h("td", {}, stats.tokens == null ? "unknown" : String(stats.tokens)),
-          h("td", {}, ms(stats.duration_ms && stats.duration_ms.p50) + " / " + ms(stats.duration_ms && stats.duration_ms.p95)),
-          h("td", {}, ms(dream.duration_ms), (dream.specialists || []).map((specialist) => h("div", { class: "hint" }, specialist.type + ": " + ms(specialist.duration_ms)))),
-          h("td", {}, dream.conclusions_created == null ? "unknown" : String(dream.conclusions_created)),
-          h("td", {}, usd(row.cost && row.cost.estimated_usd), h("div", { class: "hint" }, row.cost ? row.cost.priced_calls + "/" + row.cost.calls + " calls priced" : "no usage/rate evidence")));
-      })))), rows.length ? null : h("p", { class: "hint" }, "No completed run records for these filters.")];
+    (data.errors || []).length ? h("p", { class: "warn" }, "Some telemetry files could not be read.") : null,
+    h("div", { class: "box" }, h("div", { class: "in row cr-filters" },
+      h("label", {}, "Search", h("input", { type: "text", value: f.text, placeholder: "pair or run ID", onchange: (e) => { f.text = e.target.value; render(); } })),
+      crPick("Day (UTC)", "day", f, crUniq(all.map((r) => r.started.slice(0, 10))).reverse()),
+      crPick("Pair", "pair", f, crUniq(all.map(pairOf))),
+      crPick("Status", "state", f, ["clean", "fallback", "failures"], { clean: "Clean", fallback: "Fallback", failures: "Failures" }),
+      crPick("Model", "model", f, crUniq(all.flatMap((r) => crAnswered(r).map((m) => m.model)))),
+      crPick("Rerank", "rerank", f, ["all", "part", "none", "none-needed"], { all: "All reranked", part: "Partly", none: "None reranked", "none-needed": "No searches" }),
+      h("button", { onclick: crClear(f, ["day", "pair", "model", "state", "rerank", "text"]) }, "Clear"))),
+    h("div", { class: "stats cr-cards" }, [["Runs", crNum(rows.length)], ["Not clean", crNum(notClean), "bad"], ["Rerank skipped", crNum(skipped), "amber"], ["Conclusions", crNum(rows.reduce((a, r) => a + ((r.dream || {}).conclusions_created || 0), 0))], ["API cost", crUsd(rows.reduce((a, r) => a + crRunUsd(r), 0))]].map(([label, value, cls]) => h("div", { class: "stat" }, h("div", { class: "k" }, label), h("div", { class: "v " + (cls || "") }, value)))),
+    h("div", { class: "box tw" }, h("table", { class: "cr" }, h("thead", {}, crSortHead(CR_RUN_COLS, f, ["started", "pair", "state", "model", "deduction", "induction"], () => -1)), h("tbody", {}, body))),
+    rows.length ? null : h("p", { class: "hint" }, "No runs match these filters.")];
 }
 
 function usd(value) { return value == null ? "no rate / unknown" : "$" + Number(value).toFixed(6); }
@@ -1442,24 +1669,6 @@ function costCard() {
     h("b", {}, usd(cost && cost.estimated_usd)), h("p", { class: "hint" }, cost ? cost.priced_calls + "/" + cost.calls + " calls priced; " + cost.subscription_calls + " subscription; " + cost.unknown_route_calls + " unknown billing route. Rates and telemetry give estimates, not an invoice." : "No cost summary."),
     h("a", { href: "#cost" }, "Cost by day and stage")));
 }
-async function refreshCost() {
-  try { S.costDetail = await api("/api/cost?" + new URLSearchParams({ date: S.costDate || "" })); render(); } catch (e) { note(e.message, true); }
-}
-function pageCost() {
-  const cost = S.costDetail || S.cost || {}, rows = cost.rows || [];
-  return [h("h1", {}, "Cost"), h("p", { class: "lead" }, "List-price estimates from tokens and rates.json in the config folder. Unknown routes are excluded from known API spend; CLI subscription usage is tokens only. Missing rates never become zero."),
-    h("div", { class: "row" }, h("label", {}, "UTC date (blank: last 7 days)", h("input", { type: "date", value: S.costDate || "", onchange: (e) => { S.costDate = e.target.value; refreshCost(); } })), h("button", { onclick: refreshCost }, "Refresh")),
-    h("p", {}, "Known API estimate: ", h("b", {}, usd(cost.estimated_usd)), "; potential API estimate for unknown routes: ", usd(cost.potential_api_usd)),
-    h("p", { class: "hint" }, (cost.priced_calls || 0) + "/" + (cost.calls || 0) + " calls priced. " + (cost.no_rate_calls || 0) + " have no rate; " + (cost.subscription_calls || 0) + " subscription; " + (cost.unknown_route_calls || 0) + " unknown route. Telemetry may be sampled."),
-    cost.rate_error ? h("p", { class: "warn" }, cost.rate_error) : null,
-    cost.truncated || cost.errors && cost.errors.length ? h("p", { class: "warn" }, "Partial coverage: telemetry scan limit or unreadable files.") : null,
-    h("div", { class: "box tw" }, h("table", {}, h("thead", {}, h("tr", {}, ["UTC day", "Stage", "Model", "Route", "Calls / priced", "Tokens", "Estimate USD", "Coverage notes"].map((label) => h("th", {}, label)))),
-      h("tbody", {}, rows.map((row) => h("tr", {}, h("td", {}, row.day), h("td", {}, row.stage, h("div", { class: "hint" }, row.kind)), h("td", {}, row.model, h("div", { class: "hint" }, "backend: " + (row.backend || "unknown") + " · " + (row.routing_evidence || "unknown evidence")), row.model === "stage-route" || row.model.startsWith("@") ? h("div", { class: "hint" }, "historical alias; actual upstream model unknown") : null),
-        h("td", {}, row.billing_route === "cli" ? "subscription" : row.billing_route), h("td", {}, row.calls + " / " + row.priced_calls),
-        h("td", {}, row.tokens == null ? "unknown" : String(row.tokens), row.tokens_unknown ? " (partial)" : ""),
-        h("td", {}, row.billing_route === "cli" ? "tokens only" : usd(row.estimated_usd), row.billing_route === "unknown" ? " (potential only)" : ""), h("td", {}, (row.notes || []).join("; ")))))))];
-}
-
 function rerankStatsBox() {
   const st = S.rerankStats;
   if (!st) return h("div", { class: "box" }, h("h2", {}, "Rerank calls"), h("div", { class: "in hint" }, "No telemetry summary (the dashboard could not read /api/rerank/stats)."));
