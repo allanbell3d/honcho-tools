@@ -123,7 +123,6 @@
     "max_query_chars": 2000,
     "timeout_seconds": 5.0,
     "callers": ["dream", "dialectic", "prefetch"],
-    "daily_request_cap": 2000,
     "failures_before_cooldown": 3,
     "cooldown_seconds": 60.0
   },

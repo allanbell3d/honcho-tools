@@ -202,7 +202,7 @@ a cap.
       "peer_card": "claude:example-claude-model"
     }
   },
-  "rerank": {"enabled": true, "provider": "voyage", "model": "rerank-3-lite", "candidates": 100, "daily_request_cap": 2000},
+  "rerank": {"enabled": true, "provider": "voyage", "model": "rerank-3-lite", "candidates": 100},
   "defaults": {"brief": 350, "deduction_effort": "medium", "induction_effort": "medium", "deduction_rounds": 24, "induction_rounds": 20, "backend": null},
   "peers": {"alice": {"enabled": true}, "bob": {"enabled": true}},
   "pairs": {"alice/bob": {"brief": 50, "deduction_effort": "max", "induction_effort": "max", "rerank": {"candidates": 200}}},

@@ -12,6 +12,7 @@
 - Model pickers: API and CLI routes are separate providers, such as OpenAI API and OpenAI CLI, and every model name ends in API or CLI. A CLI subscription could be mistaken for the same model on its paid API.
 - Model catalogue: the Codex CLI list now has every model Codex offers, in its order: GPT-6.1 Sol, GPT-6 Astra, GPT-6.1 Terra, GPT-6 Sol, GPT-6 Luna, GPT-5.6 Sol, GPT-5.6 Terra and GPT-5.6 Luna. Only three were listed. An existing `models.json` needs these entries added.
 - Peers, Pairs and Rerank: a value that differs from the Defaults row has a light tint, including a value a pair takes from a peer.
+- Rerank: the example settings no longer set `daily_request_cap`. Empty means no cap, and a cap is a spending limit to set on purpose: a fixed 2,000 stopped reranking halfway through a large backlog.
 
 ## v0.1.2 — 2026-11-06
 
