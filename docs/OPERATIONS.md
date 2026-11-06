@@ -124,7 +124,7 @@ run. The calls add up on the page: OK, failed and skipped equal the total. Faile
 those a retry or fallback recovered. A subscription call shows `$0.00 subscription`, and a skipped rerank `$0.00 skipped`.
 
 Telemetry does not mark a peer card refresh, so its line shows `none recorded` and a refresh counts under Dream deduction
-and Dream induction. Embedding tokens are Honcho's estimates. Telemetry is sampled by Honcho
+and Dream induction. Embedding costs rest on Honcho's token estimates. Telemetry is sampled by Honcho
 (`HIGH_VOLUME_SAMPLE_RATE`), so counts are a lower bound, and the estimates are never invoices.
 
 An open dashboard tab checks `settings.json` every 30 seconds and when you return to the tab, and reloads when it

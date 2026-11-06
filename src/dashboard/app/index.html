@@ -1554,7 +1554,7 @@ const crSearches = (r) => Object.values((r.rerank_stats || {}).outcomes || {}).r
 const crReranked = (r) => ((r.rerank_stats || {}).outcomes || {}).reranked || 0;
 function crRerankState(r) { const n = crSearches(r), done = crReranked(r); return !n ? "none-needed" : done === n ? "all" : done ? "part" : "none"; }
 const crRunState = (r) => { const c = r.cost || {}; return c.fallback ? "fallback" : c.failed ? "failures" : "clean"; };
-const crRunUsd = (r) => { const c = r.cost || {}; return (c.llm_usd || 0) + (c.rerank_usd || 0); };
+const crRunUsd = (r) => { const c = r.cost || {}; return (c.llm_usd || 0) + (c.rerank_usd || 0) + (c.embedding_usd || 0); };
 function crRunModels(r) {
   const direct = crUniq(crAnswered(r).map((m) => m.model));
   const configured = (r.backend || "").includes(":") ? r.backend.split(":")[1] : null;
@@ -1598,7 +1598,7 @@ function crRunDetail(id, span) {
     const names = crStages(), models = crAnswered(r);
     sections.push(
       h("section", {}, h("h3", {}, "Run"), crLine("Run ID", r.run_id), crLine("Started", r.started), crLine("Finished", r.finished), crLine("Mode", r.mode), crLine("Settings from", r.source)),
-      h("section", {}, h("h3", {}, "Cost"), crLine("Model calls", crUsd(cost.llm_usd)), crLine("Rerank", crUsd(cost.rerank_usd) + " · " + crNum(cost.rerank_calls) + " calls"), crLine("Embeddings", crNum(cost.embedding_calls) + " calls · no rate"), crLine("Total", crUsd(crRunUsd(r))), crLine("Tokens", crTokens(cost.tokens))),
+      h("section", {}, h("h3", {}, "Cost"), crLine("Model calls", crUsd(cost.llm_usd)), crLine("Rerank", crUsd(cost.rerank_usd) + " · " + crNum(cost.rerank_calls) + " calls"), crLine("Embeddings", crUsd(cost.embedding_usd) + " · " + crNum(cost.embedding_calls) + " calls"), crLine("Total", crUsd(crRunUsd(r))), crLine("Tokens", crTokens(cost.tokens))),
       h("section", {}, h("h3", {}, "Passes"), (dream.specialists || []).length ? dream.specialists.map((s) => crLine(s.type, crSecs(s.duration_ms) + " · " + (s.conclusions_created ?? "?") + " conclusions")) : h("span", { class: "hint" }, "No pass telemetry"), crLine("Total conclusions", dream.conclusions_created)),
       h("section", {}, h("h3", {}, "Settings used"), crLine("Configured model", r.backend), crLine("Brief", r.brief), crLine("Deduction rounds", r.deduction_rounds), crLine("Induction rounds", r.induction_rounds), crLine("Deduction effort", crEffort(r.deduction_effort, "dream.deduction", r.backend)), crLine("Induction effort", crEffort(r.induction_effort, "dream.induction", r.backend))),
       h("section", {}, h("h3", {}, "Models that answered"), models.length ? models.map((m) => crLine(names[m.stage] || m.stage, (m.backend === "unknown" ? "" : m.backend + " / ") + m.model + " · " + m.calls + " calls")) : h("span", { class: "hint" }, "Not recorded"), cost.fallback ? crLine("Fallback calls", cost.fallback) : null),

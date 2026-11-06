@@ -3233,12 +3233,7 @@ def cost_stats(date: str = "", run_id: str = "") -> dict:
             run_key = json.dumps([data.get("workspace_name"), rid])
             run = by_run.setdefault(run_key, {"estimated_usd": 0.0, "priced_calls": 0, "calls": 0, "subscription_calls": 0, "unknown_route_calls": 0,
                                               "llm_usd": 0.0, "rerank_usd": 0.0, "rerank_calls": 0, "tokens": 0, "failed": 0, "fallback": 0,
-                                              "embedding_calls": 0, "embedding_tokens": 0})
-        if kind == EMBEDDING_EVENT:
-            if run:
-                run["embedding_calls"] += 1
-                run["embedding_tokens"] += estimate["tokens"] or 0
-            continue
+                                              "embedding_calls": 0, "embedding_tokens": 0, "embedding_usd": 0.0})
         calls += 1
         subscription += route == "cli"
         unknown += route == "unknown"
@@ -3249,9 +3244,13 @@ def cost_stats(date: str = "", run_id: str = "") -> dict:
         if route == "unknown" and amount is not None:
             potential += amount
             potential_calls += 1
-        if run_id:
+        if run_id and kind != EMBEDDING_EVENT:
             calls_list.append(_detail_call(kind, when, data, stage, provider, model, status, estimate))
-        if run:
+        if run and kind == EMBEDDING_EVENT:
+            run["embedding_calls"] += 1
+            run["embedding_tokens"] += estimate["tokens"] or 0
+            run["embedding_usd"] += amount or 0
+        elif run:
             run["calls"] += 1
             run["subscription_calls"] += route == "cli"
             run["unknown_route_calls"] += route == "unknown"
@@ -3267,6 +3266,7 @@ def cost_stats(date: str = "", run_id: str = "") -> dict:
         run["estimated_usd"] = _finite_out(run["estimated_usd"]) if run["priced_calls"] else None
         run["llm_usd"] = _finite_out(run["llm_usd"])
         run["rerank_usd"] = _finite_out(run["rerank_usd"])
+        run["embedding_usd"] = _finite_out(run["embedding_usd"])
     calls_list.sort(key=lambda item: item["time"])
     return {"days": days, "estimated_usd": _finite_out(billed) if priced else None,
             "potential_api_usd": _finite_out(potential) if potential_calls else None,

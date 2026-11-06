@@ -1871,7 +1871,7 @@ def _telemetry_line(index, kind, data, day="2026-11-02"):
 def test_cost_entries_cover_every_stage_with_status_and_fallback(client, tmp_path, monkeypatch):
     app, _settings = client
     rates = tmp_path / "rates.json"
-    rates.write_text(json.dumps({"llm": {"flash": {"input_per_million": 1, "output_per_million": 2}}, "rerank": {"voyage/r": {"per_million_tokens": 1}}}), encoding="utf-8")
+    rates.write_text(json.dumps({"llm": {"flash": {"input_per_million": 1, "output_per_million": 2}}, "rerank": {"voyage/r": {"per_million_tokens": 1}}, "embedding": {"openai/e": {"per_million_tokens": 2}}}), encoding="utf-8")
     monkeypatch.setenv("RATES_FILE", str(rates))
     day = "2026-11-02"
     (tmp_path / "runs.log").write_text(json.dumps({"run_id": "dream", "observer": "a", "observed": "a", "started": day + "T00:59:00Z", "backend": "openai:sol"}) + "\n", encoding="utf-8")
@@ -1896,20 +1896,28 @@ def test_cost_entries_cover_every_stage_with_status_and_fallback(client, tmp_pat
     assert ("dream.deduction", "not recorded", "flash", "api", day, "dream", "ok", True) in entries
     assert ("rerank", "voyage", "r", "api", day, "dream", "skipped", False) in entries
     assert entries[("rerank", "voyage", "r", "api", day, "dream", "ok", False)] == [1, 1000, pytest.approx(0.001)]
-    assert ("embedding", "openai", "e", "api", day, "dream", "ok", False) in entries
+    assert entries[("embedding", "openai", "e", "api", day, "dream", "ok", False)] == [1, 50, pytest.approx(0.0001)]
     assert ("dialectic.high", "not recorded", "flash", "api", day, "question", "cancelled", False) in entries
     assert ("summary", "not recorded", "flash", "api", day, "", "ok", False) in entries
     assert ("deriver", "not recorded", "flash", "cli", day, "", "ok", False) in entries
-    assert result["calls"] == 7 and result["call_list"] == []
+    assert result["calls"] == 8 and result["call_list"] == []
     run = result["by_run"][json.dumps([None, "dream"])]
     assert run["failed"] == 1 and run["fallback"] == 1 and run["rerank_calls"] == 2 and run["calls"] == 4
     assert run["rerank_usd"] == pytest.approx(0.001) and run["llm_usd"] == pytest.approx(0.0012)
-    assert run["embedding_calls"] == 1 and run["embedding_tokens"] == 50
+    assert run["embedding_calls"] == 1 and run["embedding_tokens"] == 50 and run["embedding_usd"] == pytest.approx(0.0001)
     calls = app.get("/api/cost", params={"run_id": "dream", "date": day}).json()["call_list"]
     assert [call["kind"] for call in calls] == ["llm", "llm", "rerank", "rerank"]
     assert calls[1]["usd"] == pytest.approx(0.0012) and calls[1]["attempt"] == 3 and calls[1]["fallback"] is True
     assert calls[0]["status"] == "failed" and calls[0]["error"] == "UpstreamLLMError"
     assert calls[2]["usd"] == pytest.approx(0.001) and calls[3]["outcome"] == "skipped_cap"
+
+
+def test_every_catalogue_model_and_the_shipped_embeddings_have_a_rate():
+    rates = json.loads((ROOT / "src/config/rates.example.json").read_text(encoding="utf-8"))
+    catalogue = json.loads((ROOT / "src/config/models.json").read_text(encoding="utf-8"))
+    models = {entry["model"] for entry in catalogue["dream"]} | {entry["model"] for entries in catalogue["tasks"].values() for entry in entries}
+    missing = {model for model in models if model not in rates["llm"] and f"openai/{model}" not in rates["embedding"]}
+    assert missing == set()
 
 
 def test_runs_carry_the_efforts_the_policy_log_recorded(client, tmp_path):

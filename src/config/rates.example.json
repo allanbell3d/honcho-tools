@@ -1,5 +1,5 @@
 {
-  "_verified_on": "2026-11-05",
+  "_verified_on": "2026-11-06",
   "_currency": "USD",
   "_basis": "Current public standard list prices, not invoices. Discounts, credits, historical price changes and negotiated rates are not applied. Missing models remain unknown. Models used over both API and CLI are not classified as subscriptions by model name. Tiered prices beyond the modelled tier, and audio, batch, priority and regional prices, are not applied.",
   "_sources": {
@@ -12,7 +12,8 @@
     "qwen": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
     "zai": "https://docs.z.ai/guides/overview/pricing",
     "moonshot": "https://platform.kimi.ai/docs/pricing/chat",
-    "voyage": "https://docs.voyageai.com/docs/pricing"
+    "voyage": "https://docs.voyageai.com/docs/pricing",
+    "openrouter": "https://openrouter.ai/api/v1/models"
   },
   "llm": {
     "claude-haiku-5-5": {
@@ -797,6 +798,89 @@
       "output_per_million": 4,
       "cache_read_per_million": 0.16,
       "estimate_note": "standard API rates; K2 models are retired by the end of December 2026"
+    },
+    "openai/gpt-5-nano": {
+      "input_per_million": 0.05,
+      "output_per_million": 0.4,
+      "cache_read_per_million": 0.005,
+      "estimate_note": "OpenRouter list price"
+    },
+    "anthropic/claude-haiku-5.5": {
+      "input_per_million": 0.1,
+      "output_per_million": 0.5,
+      "cache_read_per_million": 0.01,
+      "cache_creation_per_million": 0.125,
+      "estimate_note": "OpenRouter list price; cache writes assume 5-minute TTL",
+      "long_context": {
+        "above_input_tokens": 100000,
+        "rates": {
+          "input_per_million": 0.5,
+          "output_per_million": 2.5,
+          "cache_read_per_million": 0.05,
+          "cache_creation_per_million": 0.625
+        }
+      }
+    },
+    "deepseek/deepseek-v4-flash": {
+      "input_per_million": 0.091,
+      "output_per_million": 0.182,
+      "cache_read_per_million": 0.0182,
+      "estimate_note": "OpenRouter list price"
+    },
+    "mistralai/mistral-small-3.2-24b-instruct": {
+      "input_per_million": 0.075,
+      "output_per_million": 0.2,
+      "estimate_note": "OpenRouter list price"
+    },
+    "qwen/qwen3.7-flash": {
+      "input_per_million": 0.03,
+      "output_per_million": 0.13,
+      "cache_read_per_million": 0.006,
+      "cache_creation_per_million": 0.038,
+      "estimate_note": "OpenRouter list price; the top tier above 256,000 input tokens is not modelled",
+      "long_context": {
+        "above_input_tokens": 32000,
+        "rates": {
+          "input_per_million": 0.1,
+          "output_per_million": 0.4,
+          "cache_read_per_million": 0.02,
+          "cache_creation_per_million": 0.125
+        }
+      }
+    },
+    "z-ai/glm-4.7-flash": {
+      "input_per_million": 0.0605,
+      "output_per_million": 0.4,
+      "estimate_note": "OpenRouter list price"
+    },
+    "nvidia/nemotron-3-nano-30b-a3b": {
+      "input_per_million": 0.06,
+      "output_per_million": 0.24,
+      "cache_read_per_million": 0.012,
+      "estimate_note": "OpenRouter list price"
+    },
+    "meta-llama/llama-4-scout": {
+      "input_per_million": 0.1,
+      "output_per_million": 0.3,
+      "estimate_note": "OpenRouter list price"
+    },
+    "google/gemma-4-31b-it:free": {
+      "input_per_million": 0,
+      "output_per_million": 0,
+      "cache_read_per_million": 0,
+      "estimate_note": "OpenRouter free model"
+    },
+    "nvidia/nemotron-3.5-lightning:free": {
+      "input_per_million": 0,
+      "output_per_million": 0,
+      "cache_read_per_million": 0,
+      "estimate_note": "OpenRouter free model"
+    },
+    "nvidia/nemotron-3-ultra-550b-a55b:free": {
+      "input_per_million": 0,
+      "output_per_million": 0,
+      "cache_read_per_million": 0,
+      "estimate_note": "OpenRouter free model"
     }
   },
   "rerank": {
@@ -830,6 +914,43 @@
     },
     "voyage/rerank-lite-1": {
       "per_million_tokens": 0.02,
+      "estimate_note": "list rate before free-token credits"
+    }
+  },
+  "embedding": {
+    "openai/text-embedding-3-small": {
+      "per_million_tokens": 0.02
+    },
+    "openai/text-embedding-3-large": {
+      "per_million_tokens": 0.13
+    },
+    "openai/text-embedding-ada-002": {
+      "per_million_tokens": 0.1
+    },
+    "gemini/gemini-embedding-2": {
+      "per_million_tokens": 0.2
+    },
+    "gemini/gemini-embedding-001": {
+      "per_million_tokens": 0.15
+    },
+    "voyage/voyage-4-large": {
+      "per_million_tokens": 0.12,
+      "estimate_note": "list rate before free-token credits"
+    },
+    "voyage/voyage-4": {
+      "per_million_tokens": 0.06,
+      "estimate_note": "list rate before free-token credits"
+    },
+    "voyage/voyage-4-lite": {
+      "per_million_tokens": 0.02,
+      "estimate_note": "list rate before free-token credits"
+    },
+    "voyage/voyage-context-4": {
+      "per_million_tokens": 0.12,
+      "estimate_note": "list rate before free-token credits"
+    },
+    "voyage/voyage-code-4": {
+      "per_million_tokens": 0.12,
       "estimate_note": "list rate before free-token credits"
     }
   },
