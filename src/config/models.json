@@ -135,9 +135,15 @@
     },
     {
       "vendor": "OpenAI",
-      "label": "GPT-6 Luna (Codex CLI)",
+      "label": "GPT-6.1 Sol (Codex CLI)",
       "backend": "codex",
-      "model": "gpt-6-luna"
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "vendor": "OpenAI",
+      "label": "GPT-6 Astra (Codex CLI)",
+      "backend": "codex",
+      "model": "gpt-6-astra"
     },
     {
       "vendor": "OpenAI",
@@ -147,9 +153,33 @@
     },
     {
       "vendor": "OpenAI",
-      "label": "GPT-6.1 Sol (Codex CLI)",
+      "label": "GPT-6 Sol (Codex CLI)",
       "backend": "codex",
-      "model": "gpt-6.1-sol"
+      "model": "gpt-6-sol"
+    },
+    {
+      "vendor": "OpenAI",
+      "label": "GPT-6 Luna (Codex CLI)",
+      "backend": "codex",
+      "model": "gpt-6-luna"
+    },
+    {
+      "vendor": "OpenAI",
+      "label": "GPT-5.6 Sol (Codex CLI)",
+      "backend": "codex",
+      "model": "gpt-5.6-sol"
+    },
+    {
+      "vendor": "OpenAI",
+      "label": "GPT-5.6 Terra (Codex CLI)",
+      "backend": "codex",
+      "model": "gpt-5.6-terra"
+    },
+    {
+      "vendor": "OpenAI",
+      "label": "GPT-5.6 Luna (Codex CLI)",
+      "backend": "codex",
+      "model": "gpt-5.6-luna"
     },
     {
       "vendor": "OpenAI",
