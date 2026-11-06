@@ -62,7 +62,8 @@ select; both write `providers.stages` in `settings.json` and apply at the next c
 `providers.active`, used by a dream when no stage entry and no `backend` override applies. A dream pass's own effort
 (Pairs, Peers, Defaults) wins over the job's effort on the Models page; **Peer card refresh** takes its effort from Models only. An effort left blank says "Model default" plus
 the level it resolves to, here and on Peers and Pairs; alone, "Model default" means no level is set anywhere. **Add a model to the list**
-adds a catalogue entry (`models.json`) for the dropdowns.
+adds a catalogue entry (`models.json`) for the dropdowns. Every picker names the route: OpenAI API and OpenAI CLI are separate
+providers, and each model ends in API or CLI. The route comes from the backend's `kind`.
 
 A backend itself (`providers.backends`) is added, renamed or removed in `settings.json` by hand; the dashboard
 refuses a save that leaves `providers.active`, `defaults.backend`, a peer, a pair or a stage naming a backend that

@@ -488,7 +488,14 @@ function shortLabel(ref) {
   const e = dreamEntries().find((x) => x.backend === b && x.model === m.join(":"));
   return e ? e.label : (m.join(":") || b);
 }
-function dreamEntries() { return S.catalogue.dream || []; }
+// Every provider and model says how it is reached, so a CLI subscription cannot be picked for its API by mistake.
+function dreamEntries() {
+  const backends = (S.settings && S.settings.providers.backends) || {};
+  return (S.catalogue.dream || []).map((e) => {
+    const route = String((backends[e.backend] || {}).kind).startsWith("cli-") ? "CLI" : "API";
+    return { ...e, vendor: e.vendor + " " + route, label: e.label.replace(/ \((Codex|Claude) CLI\)$/, "") + " " + route };
+  });
+}
 function entryLabel(backend, model) {
   const e = dreamEntries().find((x) => x.backend === backend && x.model === model);
   return e ? e.vendor + " · " + e.label : (model || "?") + " (" + backend + ")";
@@ -936,7 +943,7 @@ function pageHoncho() {
 }
 function addModelBox() {
   const backends = Object.keys(S.settings.providers.backends);
-  const form = { vendor: vendorsOf()[0] || "", label: "", backend: backends[0] || "", model: "" };
+  const form = { vendor: ((S.catalogue.dream || [])[0] || {}).vendor || "", label: "", backend: backends[0] || "", model: "" };
   const input = (k, ph, w) => h("input", { type: "text", placeholder: ph, style: "width:" + w + "px", oninput: (e) => { form[k] = e.target.value; } });
   return h("div", { class: "box" }, h("h2", {}, "Add a model to the list"), h("div", { class: "in" },
     h("p", { class: "hint" }, "Saved in models.json beside settings.json (you can also edit that file). Reached through: the connection that serves it (for OpenRouter models use openrouter, model id like nvidia/nemotron-…)."),

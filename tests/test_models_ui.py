@@ -354,6 +354,29 @@ assertSummary();
     assert result.returncode == 0, result.stderr
 
 
+def test_model_pickers_name_the_route():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is not installed")
+    source = (ROOT / "src/dashboard/app/index.html").read_text(encoding="utf-8")
+    functions = source[source.index("function dreamEntries()"):source.index("function entryLabel(")]
+    checks = """
+const assert = require('assert');
+const S = {settings: {providers: {backends: {openai: {kind: "openai-compat"}, codex: {kind: "cli-codex"}, claude: {kind: "cli-claude"}}}},
+  catalogue: {dream: [{vendor: "OpenAI", label: "GPT-6 Sol", backend: "openai", model: "gpt-6-sol"},
+    {vendor: "OpenAI", label: "GPT-6.1 Sol (Codex CLI)", backend: "codex", model: "gpt-6.1-sol"},
+    {vendor: "Anthropic", label: "Claude Fable 5.1 (Claude CLI)", backend: "claude", model: "claude-fable-5-1"},
+    {vendor: "OpenAI", label: "GPT-5 nano (OpenRouter)", backend: "openrouter", model: "openai/gpt-5-nano"}]}};
+"""
+    checks += """
+const shown = dreamEntries().map((e) => e.vendor + " | " + e.label);
+assert.deepEqual(shown, ["OpenAI API | GPT-6 Sol API", "OpenAI CLI | GPT-6.1 Sol CLI", "Anthropic CLI | Claude Fable 5.1 CLI", "OpenAI API | GPT-5 nano (OpenRouter) API"]);
+assert.equal(S.catalogue.dream[0].vendor, "OpenAI");
+"""
+    result = subprocess.run([node, "-e", functions + checks], capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stderr
+
+
 def test_no_page_writes_the_embedding_model():
     # The embedding model is set once in config.toml at install. No page reads or writes embedding.model_config.
     source = (ROOT / "src/dashboard/app/index.html").read_text(encoding="utf-8")
