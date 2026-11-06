@@ -98,14 +98,15 @@ the entry exists.
 
 The per-dream settings. The hook resolves each key for one dream field by field: `pairs["observer/observed"]`, then
 `peers[observer]`, then `peers[observed]`, then `defaults`; a null or absent field falls through. An empty pair `{}`
-inherits everything. A field set nowhere keeps Honcho's own value from `config.toml` (the dashboard shows "—",
-or "Model default" for effort); `defaults` may set any field or none; a peer must set `enabled`; a pair may set any field or none.
+inherits everything. A field set nowhere keeps Honcho's own value from `config.toml` (the dashboard shows "—"); an
+effort set nowhere falls to the job's effort, then its backend's, and the dashboard shows "Model default" plus that
+level; `defaults` may set any field or none; a peer must set `enabled`; a pair may set any field or none.
 
 | Key | Type | Meaning |
 |---|---|---|
 | `enabled` | boolean, peers only | `false` skips every dream whose observer or observed is this peer, in either mode, and the scheduler does not queue it. An unlisted peer is not disabled. |
 | `brief` | integer 1 to 1000 | Maximum new conclusions in a dream brief (`BRIEF_MAX_NEW_CONCLUSIONS`). |
-| `effort` | effort level | The dream's effort, sent to the bridge as the request's effort. |
+| `deduction_effort`, `induction_effort` | effort level | The effort of each dream pass, sent to the bridge as the request's effort. A peer card refresh does not use them. |
 | `deduction_rounds`, `induction_rounds` | integer 1 to 100 | Tool-iteration cap of each dream pass. |
 | `backend` | backend reference or null | A dream model override. When set anywhere in the chain it wins over the stage entries; null everywhere means the stages, else `providers.active`. The instruction files use the backend key without a `:model` suffix. |
 | `brief_tokens` | integer 500 to 100000 | Honcho's `dream.brief_max_new_conclusion_tokens` for that dream. |
@@ -202,9 +203,9 @@ a cap.
     }
   },
   "rerank": {"enabled": true, "provider": "voyage", "model": "rerank-3-lite", "candidates": 100, "daily_request_cap": 2000},
-  "defaults": {"brief": 350, "effort": "medium", "deduction_rounds": 24, "induction_rounds": 20, "backend": null},
+  "defaults": {"brief": 350, "deduction_effort": "medium", "induction_effort": "medium", "deduction_rounds": 24, "induction_rounds": 20, "backend": null},
   "peers": {"alice": {"enabled": true}, "bob": {"enabled": true}},
-  "pairs": {"alice/bob": {"brief": 50, "effort": "max", "rerank": {"candidates": 200}}},
+  "pairs": {"alice/bob": {"brief": 50, "deduction_effort": "max", "induction_effort": "max", "rerank": {"candidates": 200}}},
   "logs": {"max_mb": 10, "keep": 1}
 }
 ```

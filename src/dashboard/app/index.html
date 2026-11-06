@@ -256,7 +256,7 @@ function changeList() {
   if (honcho.length) groups.push({ file: "Honcho config (used after a Honcho restart)", items: honcho });
   return groups;
 }
-const FIELD_NAMES = { brief: "brief", effort: "effort", deduction_rounds: "deduction rounds", induction_rounds: "induction rounds", backend: "model", enabled: "dreams",
+const FIELD_NAMES = { brief: "brief", deduction_effort: "deduction effort", induction_effort: "induction effort", deduction_rounds: "deduction rounds", induction_rounds: "induction rounds", backend: "model", enabled: "dreams",
   brief_tokens: "tokens for new conclusions", tool_calls: "tool-call cap", notes: "working notes", notes_tokens: "working notes size", budget: "show budget", write_window: "rounds left to write" };
 function fieldName(keys) {
   if (keys[0] === "rerank") return "rerank " + (keys[1] ? (RERANK_NAMES[keys[1]] || keys[1]).toLowerCase() : "(all)");
@@ -534,12 +534,23 @@ function writeStageEffort(stage, effort) {
   if (effort) stages[stage] = { model: ref, effort: effort };
   else stages[stage] = ref;
 }
-const DREAM_STAGES = ["dream.deduction", "dream.induction", "peer_card"];
-// With the hook installed a dream takes its effort from settings.json (Peers, Defaults row); set nowhere, config.toml's value stays.
-function perDreamEffort(task) {
-  if (!DREAM_STAGES.includes(task.stage) || !(S.status && S.status.hook && S.status.hook.active)) return null;
-  return h("span", { class: "hint", title: "The hook sets the effort of a dream from Peers or Defaults; set nowhere, config.toml's value is used." },
-    "per dream: Peers → Defaults (" + (S.settings.defaults.effort || "model default") + ")");
+const backendEffort = (ref) => { const b = S.settings.providers.backends[String(ref).split(":")[0]] || {}; return b.effort || b.thinking_effort || ""; };
+const stageBackendEffort = (stage) => backendEffort(stageRefOf((S.settings.providers.stages || {})[stage]) || activeRef(S.settings));
+const modelDefault = (level) => (level ? "Model default " + level : "Model default");
+const EFFORT_STAGE = { deduction_effort: "dream.deduction", induction_effort: "dream.induction" };
+// The level left to a dream pass with no effort of its own, as the bridge resolves it: a model override goes straight
+// to its backend; otherwise the job's effort, then its backend's.
+function unsetEffort(field, kind, key) {
+  const override = dreamChain(kind, key).map(([block]) => block && block.backend).find(Boolean);
+  const stage = EFFORT_STAGE[field];
+  return modelDefault(override ? backendEffort(override) : stageEffort(stage) || stageBackendEffort(stage));
+}
+// With the hook installed a dream's own effort (Pairs, Peers, Defaults row) wins over the job's. A peer card has none.
+function dreamEffortHint(task) {
+  const field = Object.keys(EFFORT_STAGE).find((f) => EFFORT_STAGE[f] === task.stage);
+  if (!field || !(S.status && S.status.hook && S.status.hook.active)) return null;
+  const set = S.settings.defaults[field];
+  return h("div", { class: "hint" }, set ? "Defaults row on Peers wins: " + set : "Peers and Pairs can override");
 }
 function writeJob(path, value, stage) {
   if (!value || !value.startsWith("bridge:")) return;
@@ -815,10 +826,10 @@ function pageModels() {
       ? pairSelects(options, readJob(task.path, task.stage), (v) => { writeJob(task.path, v, task.stage); render(); })
       : h("span", { class: "hint" }, "not routed — use Route all jobs through the bridge");
     if (routed && changed) sel.querySelectorAll("select").forEach((s) => s.classList.add("changed"));
-    const effort = perDreamEffort(task) || (routed ? effortSelect(stageEffort(task.stage), false, (v) => { writeStageEffort(task.stage, v); render(); }, 150, "provider default") : null);
+    const effort = routed ? effortSelect(stageEffort(task.stage), false, (v) => { writeStageEffort(task.stage, v); render(); }, 150, modelDefault(stageBackendEffort(task.stage))) : null;
     return h("tr", {}, h("td", {}, h("b", {}, task.label), h("div", { class: "hint" }, routed ? "hot provider routing" : "needs restart (one-time alias setup)"), task.what ? h("div", { class: "hint" }, task.what) : null),
       h("td", {}, sel, missing ? h("div", { class: "bad hint" }, "Not set: Honcho would use its own default") : null),
-      h("td", {}, effort));
+      h("td", {}, effort, routed ? dreamEffortHint(task) : null));
   });
   return [
     h("h1", {}, "Models"), h("p", { class: "lead" }, "Which model does each job. Stage providers marked hot apply after Write. A job that is not routed has no picker until Route all jobs through the bridge on Honcho config, which needs one config.toml write and a restart. A model or per-job effort after that is settings.json only."),
@@ -918,7 +929,7 @@ function twoStep(label, confirmLabel, action) {
 }
 
 // ---------- peers and pairs ----------
-const MAIN_FIELDS = ["brief", "effort", "deduction_rounds", "induction_rounds", "backend"];
+const MAIN_FIELDS = ["brief", "deduction_effort", "induction_effort", "deduction_rounds", "induction_rounds", "backend"];
 // Per-dream limits: settings.json field, label, Honcho [dream] key, choices.
 const LIMITS = [
   ["brief_tokens", "Tokens for new conclusions", "dream.brief_max_new_conclusion_tokens", [2000, 5000, 8000, 20000, 50000, 100000]],
@@ -929,11 +940,11 @@ const LIMITS = [
   ["write_window", "Rounds left to write at the end", "dream.write_window_iterations", [1, 2, 3, 4, 5, 8]],
 ];
 const LIMIT_FIELDS = LIMITS.map((l) => l[0]);
-// Where a value comes from: field -> {value, src}. Chain: pair, observer peer, defaults, then Honcho's config.
+// Where a value comes from: field -> {value, src}. Chain: pair, observer peer, observed peer, defaults, then Honcho's config.
 function inheritedFor(kind, key) {
   const out = {};
   const put = (block, src) => { for (const [f, v] of Object.entries(block || {})) if (v != null && f !== "enabled" && !(f in out)) out[f] = { value: v, src }; };
-  if (kind === "pairs") put(S.settings.peers[key.split("/")[0]], "peer");
+  if (kind === "pairs") for (const peer of key.split("/")) put(S.settings.peers[peer], "peer");
   if (kind !== "defaults") put(S.settings.defaults, "default");
   for (const [f, , path] of LIMITS) if (!(f in out)) { const v = hValue(path); out[f] = { value: v == null ? (hDefault(path) == null ? UNSET_MEANS[path] : hDefault(path)) : v, src: "Honcho" }; }
   return out;
@@ -944,26 +955,26 @@ function changedField(kind, key, f) { return !same((rowBlock(kind, key) || {})[f
 // Honcho leaves some limits unset on purpose: unset write window means 15% of the rounds.
 const UNSET_MEANS = { "dream.write_window_iterations": "15% of rounds" };
 function tagOf(i) { return i ? (i.value == null ? "—" : String(i.value)) + " · " + i.src : "—"; }
-// An effort set nowhere is the model's own default.
-const unsetLabel = (f) => (f === "effort" ? "Model default" : "—");
 function markChanged(node, on) { if (on) node.classList.add("changed"); return node; }
 function cells(kind, key, onSet) {
   const block = rowBlock(kind, key) || {};
   const isDefaults = kind === "defaults";
   const inh = isDefaults ? {} : inheritedFor(kind, key);
-  const tag = (f) => (isDefaults || !inh[f] ? unsetLabel(f) : tagOf(inh[f]));
+  const tag = (f) => (!isDefaults && inh[f] ? tagOf(inh[f]) : EFFORT_STAGE[f] ? unsetEffort(f, kind, key) : "—");
+  const effortCell = (f) => h("td", {}, ch(f, choice([{ value: "", label: tag(f) }].concat(EFFORTS.map(effortOption)), block[f] || "", (v) => onSet(f, v || null), { style: "width:150px" })));
   const ch = (f, node) => markChanged(node, changedField(kind, key, f));
   return [
     h("td", {}, ch("brief", numberChoice(BRIEFS, block.brief, tag("brief"), (v) => onSet("brief", v), 88))),
-    h("td", {}, ch("effort", choice([{ value: "", label: tag("effort") }].concat(EFFORTS.map(effortOption)), block.effort || "", (v) => onSet("effort", v || null), { style: "width:150px" }))),
+    effortCell("deduction_effort"),
+    effortCell("induction_effort"),
     h("td", {}, ch("deduction_rounds", numberChoice(ROUNDS, block.deduction_rounds, tag("deduction_rounds"), (v) => onSet("deduction_rounds", v), 84))),
     h("td", {}, ch("induction_rounds", numberChoice(ROUNDS, block.induction_rounds, tag("induction_rounds"), (v) => onSet("induction_rounds", v), 84))),
     h("td", {}, modelButton(kind, key, onSet)),
     h("td", {}, extraButton(kind, key)),
   ];
 }
-// The model cell is a button; the picker asks for the provider, then that provider's models.
-function dreamModelDisplay(kind, key) {
+// The blocks a row's dream model override can come from, in the hook's order.
+function dreamChain(kind, key) {
   const settings = S.settings;
   const peers = settings.peers || {}, pairs = settings.pairs || {};
   const chain = [];
@@ -972,6 +983,12 @@ function dreamModelDisplay(kind, key) {
     chain.push([pairs[key], key], [peers[observer], observer], [peers[observed], observed]);
   } else if (kind === "peers") chain.push([peers[key], key]);
   chain.push([settings.defaults, "default"]);
+  return chain;
+}
+// The model cell is a button; the picker asks for the provider, then that provider's models.
+function dreamModelDisplay(kind, key) {
+  const settings = S.settings;
+  const chain = dreamChain(kind, key);
   const labelFor = (ref) => shortLabel(ref.includes(":") ? ref : ref + ":" + ((settings.providers.backends[ref] || {}).model || ""));
   for (const [block, source] of chain) {
     if (block && block.backend) return { label: labelFor(block.backend) + " · " + source, title: "Dream model override from " + source + ": " + block.backend + ". Overrides the Models page's dream stages." };
@@ -1047,12 +1064,12 @@ function setBlock(container, key, field, value) {
   if (value === null || value === "") { if (field === "backend") block[field] = null; else delete block[field]; }
   else { block[field] = value; if (field === "backend") { const [b, ...m] = value.split(":"); ensureListed(S.settings, b, m.join(":")); } }
 }
-const BULK_FIELDS = { enabled: "Dreams (at once)", reset: "Reset to defaults", brief: "Brief", effort: "Effort", deduction_rounds: "Deduction rounds", induction_rounds: "Induction rounds", backend: "Model" };
+const BULK_FIELDS = { enabled: "Dreams (at once)", reset: "Reset to defaults", brief: "Brief", deduction_effort: "Deduction effort", induction_effort: "Induction effort", deduction_rounds: "Deduction rounds", induction_rounds: "Induction rounds", backend: "Model" };
 function bulkValues(field, kind) {
   const inherit = { value: "", label: kind === "pairs" ? "Inherit (from the peer, then defaults)" : "Inherit (from Defaults)" };
   if (field === "enabled") return [{ value: "true", label: "Enabled" }, { value: "false", label: "Disabled" }];
   if (field === "backend") return [inherit].concat(dreamModelOptions());
-  if (field === "effort") return [inherit].concat(EFFORTS.map(effortOption));
+  if (EFFORT_STAGE[field]) return [inherit].concat(EFFORTS.map(effortOption));
   return [inherit].concat((field === "brief" ? BRIEFS : ROUNDS).map((n) => ({ value: String(n), label: String(n) })));
 }
 // One dream switch for both pages. A pair runs when it is not in scheduler.skip and both its peers are on; a peer's
@@ -1125,7 +1142,7 @@ function rowBox(kind, key) {
   const selected = S.selected[kind];
   return h("input", { type: "checkbox", checked: selected.has(key), onchange: (e) => { if (e.target.checked) selected.add(key); else selected.delete(key); render(); } });
 }
-const TABLE_HEAD = ["Brief", "Effort", "Deduction", "Induction", "Model", "Limits"];
+const TABLE_HEAD = ["Brief", "Deduction effort", "Induction effort", "Deduction", "Induction", "Model", "Limits"];
 function pagePeers() {
   const peers = S.settings.peers, defaults = S.settings.defaults;
   const keys = Object.keys(peers);
@@ -1187,7 +1204,7 @@ function pagePairs() {
       ...cells("pairs", key, (f, v) => { setBlock(pairs, key, f, v); render(); }));
   });
   const reference = h("tr", { class: "defaults" }, h("td", {}), h("td", { colspan: 2 }, "Defaults (set on Peers)"),
-    h("td", { class: "hint" }, String(d.brief ?? "—")), h("td", { class: "hint" }, d.effort || "Model default"), h("td", { class: "hint" }, String(d.deduction_rounds ?? "—")), h("td", { class: "hint" }, String(d.induction_rounds ?? "—")),
+    h("td", { class: "hint" }, String(d.brief ?? "—")), h("td", { class: "hint" }, d.deduction_effort || unsetEffort("deduction_effort", "defaults")), h("td", { class: "hint" }, d.induction_effort || unsetEffort("induction_effort", "defaults")), h("td", { class: "hint" }, String(d.deduction_rounds ?? "—")), h("td", { class: "hint" }, String(d.induction_rounds ?? "—")),
     h("td", { class: "hint" }, d.backend ? shortLabel(d.backend) : "Active: " + shortLabel(activeRef(S.settings))), h("td", {}));
   // The pair to add is picked first.
   if (!S.addPair || !names.includes(S.addPair.a) || !names.includes(S.addPair.b)) {

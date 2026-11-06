@@ -51,7 +51,7 @@ database: peers are appended to `peers` as `enabled: false`, pairs to `pairs` as
 peer on there. A peer that is off is never dreamed, in either mode, and the scheduler queues a pair only when both
 peers are listed and on.
 
-**Peers** and **Pairs** set, per row, the brief, effort, rounds, the dream model override and (behind ⋯) the six
+**Peers** and **Pairs** set, per row, the brief, the deduction and induction efforts, rounds, the dream model override and (behind ⋯) the six
 Honcho dream limits and the per-dream rerank keys. An empty field inherits (pair, observer, observed, defaults) and
 shows the inherited value faded; **Reset** clears a row's own values. The **Defaults** row is `defaults`.
 
@@ -59,9 +59,10 @@ shows the inherited value faded; **Reset** clears a row's own values. The **Defa
 
 After Route all (`docs/SETUP.md`, step 8) every job row on **Models** has a picker over the catalogue and an effort
 select; both write `providers.stages` in `settings.json` and apply at the next call. The **Dreams fallback** row is
-`providers.active`, used by a dream when no stage entry and no `backend` override applies. For dreams, the effort
-comes from the per-dream settings (Peers, Pairs, Defaults), not from the Models page; the page says so on those
-rows. **Add a model to the list** adds a catalogue entry (`models.json`) for the dropdowns.
+`providers.active`, used by a dream when no stage entry and no `backend` override applies. A dream pass's own effort
+(Pairs, Peers, Defaults) wins over the job's effort on the Models page; **Peer card refresh** takes its effort from Models only. An effort left blank says "Model default" plus
+the level it resolves to, here and on Peers and Pairs; alone, "Model default" means no level is set anywhere. **Add a model to the list**
+adds a catalogue entry (`models.json`) for the dropdowns.
 
 A backend itself (`providers.backends`) is added, renamed or removed in `settings.json` by hand; the dashboard
 refuses a save that leaves `providers.active`, `defaults.backend`, a peer, a pair or a stage naming a backend that

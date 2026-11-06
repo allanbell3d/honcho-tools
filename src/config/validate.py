@@ -22,12 +22,12 @@ SCHEMA_PATH = ROOT / "settings.schema.json"
 SECRET = re.compile(r"(?:^|[^A-Za-z0-9])(?:sk-|AIza|Bearer |eyJ)")
 POLICY_MAP = {
     "max_conclusions": "brief",
-    "reasoning_effort": "effort",
+    "reasoning_effort": "deduction_effort",
     "deduction_rounds": "deduction_rounds",
     "induction_rounds": "induction_rounds",
 }
 # Fields that have no counterpart in the two source files: per-dream limits and the rerank block.
-PER_DREAM_FIELDS = {"brief_tokens", "tool_calls", "notes", "notes_tokens", "budget", "write_window", "rerank"}
+PER_DREAM_FIELDS = {"induction_effort", "brief_tokens", "tool_calls", "notes", "notes_tokens", "budget", "write_window", "rerank"}
 ADDED_PEER_FIELDS = {"enabled", "backend"} | PER_DREAM_FIELDS
 RERANK_FORBIDDEN = {"api_key", "api-key", "apikey", "key"}
 

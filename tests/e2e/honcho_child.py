@@ -109,7 +109,7 @@ async def main():
                     decision.card_refresh = task == "peer_card"
                     cfg = pr._stamp_model(cfg, decision, decision.policy, task)
                     entry["hooked"] = dump(cfg)
-                    entry["hook_policy_effort"] = decision.policy.get("effort")
+                    entry["hook_policy_effort"] = decision.policy.get(pr.STAGE_EFFORT.get(task))
                 marker = f"E2E-CASE[{case}/{task}]"
                 control({"case": f"{case}/{task}", "settings": job["settings_json"]})
                 response = await call(cfg, task, marker)

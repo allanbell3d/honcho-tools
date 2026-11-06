@@ -117,7 +117,7 @@ def test_stage_object_effort_is_checked_like_a_string():
     assert any("providers.stages.summary" in line and "is not a backend" in line for line in lines)
     assert any("providers.stages.deriver" in line and "is disabled" in line for line in lines)
     page = (ROOT / "src" / "dashboard" / "app" / "index.html").read_text(encoding="utf-8")
-    assert 'effortSelect(stageEffort(task.stage), false, (v) => { writeStageEffort(task.stage, v); render(); }, 150, "provider default")' in page
+    assert 'effortSelect(stageEffort(task.stage), false, (v) => { writeStageEffort(task.stage, v); render(); }, 150, modelDefault(stageBackendEffort(task.stage)))' in page
     assert "effortSelect(backend[eff.key], eff.required, (v) => { if (v) backend[eff.key] = v; else delete backend[eff.key]; render(); })" in page
 
 
@@ -142,7 +142,7 @@ def test_validate_names_a_key_and_allows_per_dream_fields():
     diffs = validate.block_diffs(
         "defaults",
         {"max_conclusions": 4, "reasoning_effort": "medium"},
-        {"brief": 4, "effort": "medium", "backend": None, "rerank": {"enabled": True}, "tool_calls": 10},
+        {"brief": 4, "deduction_effort": "medium", "backend": None, "rerank": {"enabled": True}, "tool_calls": 10},
         {"backend"} | validate.PER_DREAM_FIELDS,
     )
     assert diffs == []

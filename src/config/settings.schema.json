@@ -348,7 +348,8 @@
       "description": "Every key is optional: a key left out keeps Honcho's own value from config.toml.",
       "properties": {
         "brief": { "$ref": "#/$defs/brief" },
-        "effort": { "$ref": "#/$defs/effort" },
+        "deduction_effort": { "$ref": "#/$defs/effort" },
+        "induction_effort": { "$ref": "#/$defs/effort" },
         "deduction_rounds": { "$ref": "#/$defs/rounds" },
         "induction_rounds": { "$ref": "#/$defs/rounds" },
         "brief_tokens": { "$ref": "#/$defs/briefTokens" },
@@ -371,7 +372,8 @@
           "type": "boolean"
         },
         "brief": { "$ref": "#/$defs/brief" },
-        "effort": { "$ref": "#/$defs/effort" },
+        "deduction_effort": { "$ref": "#/$defs/effort" },
+        "induction_effort": { "$ref": "#/$defs/effort" },
         "deduction_rounds": { "$ref": "#/$defs/rounds" },
         "induction_rounds": { "$ref": "#/$defs/rounds" },
         "brief_tokens": { "$ref": "#/$defs/briefTokens" },
@@ -390,7 +392,8 @@
       "description": "Empty object inherits defaults.",
       "properties": {
         "brief": { "$ref": "#/$defs/brief" },
-        "effort": { "$ref": "#/$defs/effort" },
+        "deduction_effort": { "$ref": "#/$defs/effort" },
+        "induction_effort": { "$ref": "#/$defs/effort" },
         "deduction_rounds": { "$ref": "#/$defs/rounds" },
         "induction_rounds": { "$ref": "#/$defs/rounds" },
         "brief_tokens": { "$ref": "#/$defs/briefTokens" },

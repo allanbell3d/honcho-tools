@@ -46,14 +46,14 @@ def test_lookup_order_pair_hides_peers():
     data = sample_settings()
     merged, source = policies.lookup_block(data, "observer", "observed")
     assert merged["brief"] == 11
-    assert merged["effort"] == "low"
+    assert merged["deduction_effort"] == "low"
     assert merged["deduction_rounds"] == 2
     assert "backend" not in merged
     assert source == "observed"
-    data["pairs"]["observer/observed"]["effort"] = "high"
+    data["pairs"]["observer/observed"]["deduction_effort"] = "high"
     merged, source = policies.lookup_block(data, "observer", "observed")
     assert source == "observer/observed"
-    assert merged["effort"] == "high"
+    assert merged["deduction_effort"] == "high"
     assert merged["brief"] == 11
 
 
@@ -63,7 +63,7 @@ def test_empty_pair_uses_defaults_not_peer_fields():
     merged, source = policies.lookup_block(data, "observer", "observed")
     assert source == "observed"
     assert merged["brief"] == 8
-    assert merged["effort"] == "low"
+    assert merged["deduction_effort"] == "low"
 
 
 def test_peer_observer_then_observed_then_defaults():
@@ -71,18 +71,18 @@ def test_peer_observer_then_observed_then_defaults():
     data["pairs"] = {}
     merged, source = policies.lookup_block(data, "observer", "observed")
     assert merged["brief"] == 8
-    assert merged["effort"] == "low"
+    assert merged["deduction_effort"] == "low"
     assert source == "observed"
-    data["peers"]["observer"]["effort"] = "high"
+    data["peers"]["observer"]["deduction_effort"] = "high"
     merged, source = policies.lookup_block(data, "observer", "observed")
     assert source == "observer"
     assert merged["brief"] == 8
-    assert merged["effort"] == "high"
-    data["peers"]["observer"].pop("effort")
+    assert merged["deduction_effort"] == "high"
+    data["peers"]["observer"].pop("deduction_effort")
     data["peers"].pop("observer")
     merged, source = policies.lookup_block(data, "observer", "observed")
     assert source == "observed"
-    assert merged["effort"] == "low"
+    assert merged["deduction_effort"] == "low"
     assert merged["brief"] == 4
     data["peers"] = {}
     merged, source = policies.lookup_block(data, "observer", "observed")
@@ -128,7 +128,7 @@ def test_used_line_keeps_old_json_keys_and_suffix():
         "observer",
         "observed",
         "observer/observed",
-        {"brief": 11, "effort": "max", "deduction_rounds": 2, "induction_rounds": 3},
+        {"brief": 11, "deduction_effort": "max", "induction_effort": "low", "deduction_rounds": 2, "induction_rounds": 3},
         "stock",
         "openrouter:or-listed",
         "ran",
@@ -140,7 +140,8 @@ def test_used_line_keeps_old_json_keys_and_suffix():
     body = ast.literal_eval(match.group(4))
     assert body == {
         "max_conclusions": 11,
-        "reasoning_effort": "max",
+        "deduction_effort": "max",
+        "induction_effort": "low",
         "deduction_rounds": 2,
         "induction_rounds": 3,
     }
@@ -152,15 +153,15 @@ def test_used_line_keeps_old_json_keys_and_suffix():
 def test_reload_on_mtime_and_secret_is_not_applied(tmp_path, monkeypatch):
     path = tmp_path / "settings.json"
     log_path = tmp_path / "policy-used.log"
-    write_settings(path, {"mode": "stock", "defaults": {"brief": 4, "effort": "low"}})
+    write_settings(path, {"mode": "stock", "defaults": {"brief": 4, "deduction_effort": "low"}})
     store = policies.Policies(path, log_path)
     assert store.data["defaults"]["brief"] == 4
-    write_settings(path, {"mode": "scheduler", "defaults": {"brief": 9, "effort": "high"}})
+    write_settings(path, {"mode": "scheduler", "defaults": {"brief": 9, "deduction_effort": "high"}})
     os.utime(path, ns=(path.stat().st_mtime_ns + 1_000_000_000,) * 2)
     store.reload()
     assert store.data["mode"] == "scheduler"
     assert store.data["defaults"]["brief"] == 9
-    write_settings(path, {"mode": "stock", "defaults": {"effort": "sk-nope"}})
+    write_settings(path, {"mode": "stock", "defaults": {"deduction_effort": "sk-nope"}})
     os.utime(path, ns=(path.stat().st_mtime_ns + 2_000_000_000,) * 2)
     store.reload()
     assert store.data["mode"] == "scheduler"
@@ -530,7 +531,8 @@ def _restore(saved):
 
 def test_install_gates_mark_and_instructions(tmp_path, monkeypatch):
     data = sample_settings()
-    data["pairs"]["observer/observed"]["effort"] = "medium"
+    data["pairs"]["observer/observed"]["deduction_effort"] = "medium"
+    data["pairs"]["observer/observed"]["induction_effort"] = "medium"
     saved, seen, dreamer, orch, path = _install_fakes(tmp_path, monkeypatch, data)
     try:
         outside = orch.get_configuration()
@@ -884,7 +886,7 @@ def test_a_dream_cannot_turn_rerank_on_or_take_the_key_elsewhere():
 def test_rejected_settings_at_start_skip_every_dream(tmp_path):
     # Falling back to stock would let Honcho's own dreams run in a deployment set to scheduler.
     path = tmp_path / "settings.json"
-    path.write_text('{"mode": "scheduler", "defaults": {"effort": "huge"}}', encoding="utf-8")
+    path.write_text('{"mode": "scheduler", "defaults": {"induction_effort": "huge"}}', encoding="utf-8")
     loaded = policies.Policies(path=path, log_path=tmp_path / "policy.log")
     assert loaded.decide("a", "a", None, "document_threshold").gate == "skipped-settings"
     missing = policies.Policies(path=tmp_path / "none.json", log_path=tmp_path / "policy.log")
@@ -1024,7 +1026,7 @@ def test_hook_status_preserves_last_good_mtime(tmp_path, monkeypatch):
     assert first["checks_passed"] is True and first["installed_at"]
     assert first["fork_sha"] == "a" * 40
     assert first["settings_mtime_applied"] == path.stat().st_mtime_ns
-    path.write_text('{"defaults":{"effort":"sk-private-value"}}', encoding="utf-8")
+    path.write_text('{"defaults":{"deduction_effort":"sk-private-value"}}', encoding="utf-8")
     os.utime(path, ns=(path.stat().st_mtime_ns + 2_000_000_000,) * 2)
     store.reload()
     failed_text = (tmp_path / "status.json").read_text()
@@ -1215,10 +1217,10 @@ def test_direct_transport_gets_no_bridge_fields_and_no_raw_effort():
                                  gate="ran", observer="a", observed="b")
     direct = _Model("anthropic")
     direct.overrides.provider_params = {"extra_body": {"cache_control": {"type": "ephemeral"}, "output_config": {"effort": "high"}}}
-    stamped = policies._stamp_model(direct, decision, {"effort": "minimal"}, "dream.deduction")
+    stamped = policies._stamp_model(direct, decision, {"deduction_effort": "minimal"}, "dream.deduction")
     assert stamped.thinking_effort == "minimal"
     assert stamped.overrides.provider_params["extra_body"] == {"cache_control": {"type": "ephemeral"}}
-    bridged = policies._stamp_model(_Model("openai"), decision, {"effort": "low"}, "dream.deduction")
+    bridged = policies._stamp_model(_Model("openai"), decision, {"deduction_effort": "low"}, "dream.deduction")
     extra = bridged.overrides.provider_params["extra_body"]
     assert (extra["backend"], extra["observer"], extra["observed"]) == ("deepseek", "a", "b")
     assert extra["output_config"] == {"effort": "low"}
@@ -1228,17 +1230,23 @@ def test_none_effort_is_stamped_for_the_bridge_and_left_off_a_direct_provider():
     # Honcho's anthropic transport drops none and its gemini transport would send an unlisted thinking_level.
     decision = policies.Decision(policy={}, source="default", mode="stock", backend="deepseek", backend_name="deepseek",
                                  gate="ran", observer="a", observed="b")
-    bridged = policies._stamp_model(_Model("openai"), decision, {"effort": "none"}, "dream.deduction")
+    two = {"deduction_effort": "low", "induction_effort": "high"}
+    assert policies._stamp_model(_Model("openai"), decision, two, "dream.deduction").thinking_effort == "low"
+    assert policies._stamp_model(_Model("openai"), decision, two, "dream.induction").thinking_effort == "high"
+    # A peer card refresh keeps its job's effort: nothing per dream reaches it.
+    card = policies._stamp_model(_Model("openai"), decision, two, "peer_card")
+    assert "output_config" not in card.overrides.provider_params["extra_body"]
+    bridged = policies._stamp_model(_Model("openai"), decision, {"deduction_effort": "none"}, "dream.deduction")
     assert bridged.thinking_effort == "none"
     assert bridged.overrides.provider_params["extra_body"]["output_config"] == {"effort": "none"}
     for transport in ("anthropic", "gemini"):
-        stamped = policies._stamp_model(_Model(transport), decision, {"effort": "none"}, "dream.deduction")
+        stamped = policies._stamp_model(_Model(transport), decision, {"deduction_effort": "none"}, "dream.deduction")
         assert stamped.thinking_effort == "low", transport  # the model's own setting, untouched
         assert "output_config" not in stamped.overrides.provider_params["extra_body"], transport
 
 
 def test_policy_file_accepts_none_effort(tmp_path):
     path = tmp_path / "settings.json"
-    write_settings(path, {"mode": "stock", "defaults": {"effort": "none"}, "peers": {"p": {"effort": "none"}}})
+    write_settings(path, {"mode": "stock", "defaults": {"deduction_effort": "none"}, "peers": {"p": {"induction_effort": "none"}}})
     store = policies.Policies(path, tmp_path / "policies.log")
-    assert store.data["defaults"]["effort"] == "none"
+    assert store.data["defaults"]["deduction_effort"] == "none"

@@ -42,10 +42,10 @@ is also POSTed there once (`X-Telemetry-Key` when `VIEWER_KEY` is set), best eff
 **`LOGS_DIR/policy-used.log`**, one line per dream decision:
 
 ```
-<observer>/<observed> <- <source> {"max_conclusions": 350, "reasoning_effort": "high", "deduction_rounds": 24, "induction_rounds": 20} mode=<stock|scheduler> backend=<backend> gate=<ran|skipped-mode|skipped-disabled|skipped-settings>
+<observer>/<observed> <- <source> {"max_conclusions": 350, "deduction_effort": "high", "induction_effort": "low", "deduction_rounds": 24, "induction_rounds": 20} mode=<stock|scheduler> backend=<backend> gate=<ran|skipped-mode|skipped-disabled|skipped-settings>
 ```
 
-`<source>` is the block that supplied the effort (`pair`, `observer`, `observed`, `defaults`); the JSON holds the
+`<source>` is the block that supplied the first effort (`pair`, `observer`, `observed`, `defaults`); the JSON holds the
 dream's own limits when set and is JSON. Other lines (reload
 notices, `rerank for …`, instruction warnings, deprecations) contain no `{` and no `<-`. Timestamps are UTC with a
 `Z`. Rotates from the `logs` block.
@@ -61,7 +61,7 @@ telemetry by `run_id`.
 and when the hook could not install, `hook_failed` (exception class) and `dreams_blocked`.
 
 **Inside Honcho**, per dream: the hook stamps `thinking_effort` and `extra_body.output_config.effort` from the
-dream's effort, and `extra_body.backend` (`@dream.deduction`, `@dream.induction` or `@peer_card`, or the explicit
+pass's own effort (none on a peer card refresh), and `extra_body.backend` (`@dream.deduction`, `@dream.induction` or `@peer_card`, or the explicit
 backend override), `extra_body.observer` and `extra_body.observed` onto the dream model config the bridge receives.
 
 ## Scheduler

@@ -22,14 +22,15 @@ def sample_settings() -> dict:
         "mode": "stock",
         "defaults": {
             "brief": 4,
-            "effort": "medium",
+            "deduction_effort": "medium",
+            "induction_effort": "medium",
             "deduction_rounds": 2,
             "induction_rounds": 3,
             "backend": None,
         },
         "peers": {
             "observer": {"enabled": True, "brief": 8, "backend": None},
-            "observed": {"enabled": True, "effort": "low", "backend": "deepseek"},
+            "observed": {"enabled": True, "deduction_effort": "low", "induction_effort": "low", "backend": "deepseek"},
             "off": {"enabled": False, "brief": 5},
         },
         "pairs": {

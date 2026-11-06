@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.2 — 2026-11-06
+
+- Models page: the Dream deduction, Dream induction and Peer card refresh rows have their effort dropdown back; it had been replaced by a note that hid the stored effort. Peers and Pairs can still override the two dream rows, and a note there says so.
+- Models, Peers and Pairs: a blank effort says "Model default" plus the level that applies (the job's effort, then its backend's), for example "Model default low", instead of a fixed "Model default" or "provider default"; alone, "Model default" means no level is set anywhere. A row with its own model shows that model's level, and the peer card job stays out of it.
+- Peers and Pairs: the Effort column is now two, Deduction effort and Induction effort. `deduction_effort` and `induction_effort` replace `effort` in `defaults`, `peers` and `pairs`; a settings file that still has `effort` must rename it. The policy log carries the two keys in place of `reasoning_effort`.
+- Peer card refresh takes its effort only from its Models row: per-dream settings no longer reach it.
+- Pairs page: a value inherited from the observed peer shows on the row, matching what the hook does.
+
 ## v0.1.1 — 2026-11-05
 
 - First public release. The v0.0.N entries below are the history before the public repository.

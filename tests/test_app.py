@@ -109,7 +109,8 @@ def valid_settings() -> dict:
         },
         "defaults": {
             "brief": 4,
-            "effort": "medium",
+            "deduction_effort": "medium",
+            "induction_effort": "medium",
             "deduction_rounds": 2,
             "induction_rounds": 3,
             "backend": None,

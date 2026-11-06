@@ -37,7 +37,7 @@ CODE (src/)                 CONFIG (CONFIG_DIR, /config)            DATA (DATA_D
 `scheduled_by` is still sent. The request drops it, and `DreamPayload` has no such field, so it does not reach the deriver today. The hook reads it first when the attribute is present. Installation also replaces `src.deriver.consumer.process_dream` when that module is already loaded, so a chained entrypoint cannot keep the original binding. The trigger reason is what reaches the deriver now.
 
 ## Lookup
-Brief, effort and rounds resolve field by field: pair, `peers[observer]`, `peers[observed]`, `defaults`. A null or absent field falls through. An empty pair does not hide the peer blocks. The log source is the block that supplied `effort`.
+Brief, the two efforts (`deduction_effort`, `induction_effort`) and rounds resolve field by field: pair, `peers[observer]`, `peers[observed]`, `defaults`. A null or absent field falls through. An empty pair does not hide the peer blocks. The log source is the block that supplied the first effort. A peer card refresh has no per-dream effort: its `peer_card` stage entry sets it.
 
 Backend uses the same chain, then `providers.active` when every backend is null or absent. The instruction directory for a backend is that key, without a `:model` suffix.
 

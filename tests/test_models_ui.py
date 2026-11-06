@@ -14,7 +14,7 @@ def test_peer_model_display_matches_stage_and_override_precedence():
     if not node:
         pytest.skip("node is unavailable")
     source = (ROOT / "src/dashboard/app/index.html").read_text(encoding="utf-8")
-    functions = source[source.index("function dreamModelDisplay("):source.index("function modelButton(")]
+    functions = source[source.index("function dreamChain("):source.index("function modelButton(")]
     checks = r"""
 const assert = require('node:assert/strict');
 const S = {settings: {providers: {active: 'anthropic', backends: {anthropic: {model: 'haiku'}, deepseek: {model: 'flash'}}, stages: {'dream.deduction': 'deepseek:flash', 'dream.induction': 'deepseek:flash', peer_card: 'deepseek:flash'}}, defaults: {backend: null}, peers: {A: {}, B: {}}, pairs: {'A/B': {}}}};
@@ -41,6 +41,49 @@ S.settings.providers.stages.peer_card = { model: 'deepseek:flash', effort: 'medi
 assert.equal(dreamModelDisplay('peers', 'A').label, 'deepseek:flash · stages');
 S.settings.providers.stages = {};
 assert.equal(dreamModelDisplay('peers', 'A').label, 'anthropic:haiku · fallback');
+"""
+    result = subprocess.run([node, "-e", functions + checks], capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stderr
+
+
+def test_blank_effort_shows_the_level_that_applies():
+    # The Models page said "model default" while the dream jobs ran on a stored effort no page showed.
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is unavailable")
+    source = (ROOT / "src/dashboard/app/index.html").read_text(encoding="utf-8")
+    start = source.index("function stageRefOf(")
+    functions = "".join((
+        source[start:source.index("function readJob(")],
+        source[source.index("function stageEffort("):source.index("function writeStageEffort(")],
+        source[source.index("const backendEffort"):source.index("// With the hook installed a dream's own effort")],
+        source[source.index("function dreamChain("):source.index("// The model cell is a button")],
+    ))
+    checks = r"""
+const assert = require('node:assert/strict');
+const stage = (effort) => ({ model: 'codex:terra', effort });
+const S = {settings: {providers: {active: 'codex', backends: {codex: {model: 'terra', effort: 'high'}, deepseek: {model: 'flash', thinking_effort: 'low'}, plain: {model: 'x'}},
+  stages: {'dream.deduction': stage('medium'), 'dream.induction': stage('medium'), peer_card: stage('medium')}}, defaults: {}, peers: {A: {}, B: {}}, pairs: {'A/B': {}}}};
+const activeRef = (settings) => settings.providers.active + ':' + settings.providers.backends[settings.providers.active].model;
+assert.equal(unsetEffort('deduction_effort', 'defaults'), 'Model default medium');
+assert.equal(unsetEffort('induction_effort', 'peers', 'A'), 'Model default medium');
+assert.equal(unsetEffort('deduction_effort', 'pairs', 'A/B'), 'Model default medium');
+S.settings.providers.stages.peer_card = stage('max');
+assert.equal(unsetEffort('deduction_effort', 'peers', 'A'), 'Model default medium');
+assert.equal(unsetEffort('induction_effort', 'peers', 'A'), 'Model default medium');
+S.settings.providers.stages['dream.induction'] = stage('xhigh');
+assert.equal(unsetEffort('deduction_effort', 'peers', 'A'), 'Model default medium');
+assert.equal(unsetEffort('induction_effort', 'peers', 'A'), 'Model default xhigh');
+S.settings.peers.B.backend = 'deepseek';
+assert.equal(unsetEffort('induction_effort', 'pairs', 'A/B'), 'Model default low');
+assert.equal(unsetEffort('induction_effort', 'peers', 'A'), 'Model default xhigh');
+S.settings.peers.B.backend = 'plain';
+assert.equal(unsetEffort('deduction_effort', 'pairs', 'A/B'), 'Model default');
+S.settings.peers.B.backend = null;
+S.settings.providers.stages = {};
+assert.equal(unsetEffort('deduction_effort', 'peers', 'A'), 'Model default high');
+delete S.settings.providers.backends.codex.effort;
+assert.equal(unsetEffort('induction_effort', 'peers', 'A'), 'Model default');
 """
     result = subprocess.run([node, "-e", functions + checks], capture_output=True, text=True, timeout=10)
     assert result.returncode == 0, result.stderr

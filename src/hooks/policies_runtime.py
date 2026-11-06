@@ -1,9 +1,9 @@
 """Per-dream settings from settings.json. Installed into the deriver by deriver_main.py.
 
-The file is re-read when its mtime changes. Brief, effort and rounds resolve field by
-field: pair, then peers[observer], then peers[observed], then defaults. A null or absent
+The file is re-read when its mtime changes. Brief, the two efforts and rounds resolve field
+by field: pair, then peers[observer], then peers[observed], then defaults. A null or absent
 field falls through, so an empty pair does not hide the peer blocks. source is the block
-that supplied effort. Backend uses the same chain, then providers.active. The dream limits
+that supplied the first effort. Backend uses the same chain, then providers.active. The dream limits
 in LIMITS resolve the same way and replace Honcho's [dream] value for that one dream; a
 limit set nowhere keeps Honcho's value. The rerank block (RERANK_FIELDS) resolves the same
 way; while a dream runs, src.honcho_rerank (when that package is installed) reads its
@@ -42,6 +42,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 EFFORTS = ("none", "minimal", "low", "medium", "high", "xhigh", "max")
+# One per dream pass. A peer card refresh has no per-dream effort: its job on the Models page sets it.
+STAGE_EFFORT = {"dream.deduction": "deduction_effort", "dream.induction": "induction_effort"}
 MARK = "honcho-scheduler"
 # The schedule route writes this. ScheduleDreamRequest has no trigger_reason field.
 API_TRIGGER = "manual"
@@ -254,8 +256,8 @@ def lookup_block(data: dict, observer: str, observed: str) -> tuple[dict, str]:
     """Each field walks pair, then peers[observer], then peers[observed], then defaults.
 
     A null or absent field falls through. An empty pair does not hide the peer blocks.
-    source is the block that supplied effort: the pair key, the observer, the observed,
-    or default.
+    source is the block that supplied the first effort: the pair key, the observer, the
+    observed, or default.
     """
     pairs = data.get("pairs") or {}
     peers = data.get("peers") or {}
@@ -271,15 +273,15 @@ def lookup_block(data: dict, observer: str, observed: str) -> tuple[dict, str]:
     if isinstance(defaults, dict):
         chain.append((defaults, "default"))
     merged: dict = {}
-    source = "default"
-    for key_name in ("brief", "effort", "deduction_rounds", "induction_rounds", *LIMITS):
+    source = None
+    for key_name in ("brief", *STAGE_EFFORT.values(), "deduction_rounds", "induction_rounds", *LIMITS):
         for block, name in chain:
             if key_name in block and block[key_name] is not None:
                 merged[key_name] = block[key_name]
-                if key_name == "effort":
+                if key_name in STAGE_EFFORT.values() and source is None:
                     source = name
                 break
-    return merged, source
+    return merged, source or "default"
 
 
 def lookup_rerank(data: dict, observer: str, observed: str) -> tuple[dict, str | None]:
@@ -463,8 +465,9 @@ def format_used_line(observer: str, observed: str, source: str, policy: dict, mo
     body = {}
     if "brief" in policy:
         body["max_conclusions"] = policy["brief"]
-    if "effort" in policy:
-        body["reasoning_effort"] = policy["effort"]
+    for name in STAGE_EFFORT.values():
+        if name in policy:
+            body[name] = policy[name]
     if "deduction_rounds" in policy:
         body["deduction_rounds"] = policy["deduction_rounds"]
     if "induction_rounds" in policy:
@@ -643,9 +646,10 @@ def _stamp_model(value, decision: Decision, policy: dict, stage: str | None = No
     # none (thinking off) goes to the bridge only. On a direct provider Honcho 3.5.0 cannot use it: the anthropic transport
     # drops it (_anthropic_effort sends no effort, so thinking stays as it was) and the gemini transport would send
     # thinking_level "none", which Google does not list (minimal, low, medium, high). The job keeps its own setting there.
-    if "effort" in policy and (bridge or policy["effort"] != "none"):
+    effort = policy.get(STAGE_EFFORT.get(stage))
+    if effort is not None and (bridge or effort != "none"):
         try:
-            stamped.thinking_effort = policy["effort"]
+            stamped.thinking_effort = effort
         except Exception:
             pass
         output = extra.get("output_config")
@@ -653,7 +657,7 @@ def _stamp_model(value, decision: Decision, policy: dict, stage: str | None = No
             if not isinstance(output, dict):
                 output = {}
                 extra["output_config"] = output
-            output["effort"] = policy["effort"]
+            output["effort"] = effort
         elif isinstance(output, dict) and "effort" in output:
             # A raw effort here would override Honcho's own mapping of thinking_effort.
             del output["effort"]
@@ -885,9 +889,10 @@ class Policies:
         for block in blocks:
             if not isinstance(block, dict):
                 continue
-            effort = block.get("effort")
-            if effort is not None and effort not in EFFORTS:
-                raise ValueError("effort")
+            for name in STAGE_EFFORT.values():
+                effort = block.get(name)
+                if effort is not None and effort not in EFFORTS:
+                    raise ValueError(name)
             for name in ("brief", "deduction_rounds", "induction_rounds"):
                 value = block.get(name)
                 if value is not None and (type(value) is not int or value <= 0):

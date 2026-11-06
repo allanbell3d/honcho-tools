@@ -23,7 +23,7 @@ The hook re-reads `settings.json` when the mtime changes. A file with an error i
 
 ## Lookup
 
-Brief, effort and rounds resolve field by field: `pairs["observer/observed"]`, then `peers[observer]`, then `peers[observed]`, then `defaults`. A null or absent field falls through. An empty pair does not hide the peer blocks. The log source is the block that supplied `effort`.
+Brief, the two efforts (`deduction_effort`, `induction_effort`) and rounds resolve field by field: `pairs["observer/observed"]`, then `peers[observer]`, then `peers[observed]`, then `defaults`. A null or absent field falls through. An empty pair does not hide the peer blocks. The log source is the block that supplied `effort`.
 
 Backend is separate. A null or absent value falls through: pair, `peers[observer]`, `peers[observed]`, `defaults.backend`, `providers.active`. The instruction file uses the backend key, without a `:model` suffix.
 
@@ -41,9 +41,9 @@ A skipped dream returns without calling the original function. The hook's wrappe
 
 ## What a dream receives
 
-While the dream runs, the hook overrides `BRIEF_MAX_NEW_CONCLUSIONS` and the two tool-iteration caps from the block. It sets `thinking_effort` and `extra_body.output_config.effort` from `effort` (`none` only on a call that goes to the bridge: Honcho's anthropic transport drops it and its gemini transport would send a `thinking_level` Google does not list, so a direct call keeps the job's own setting), and sets `extra_body.backend`, `extra_body.observer` and `extra_body.observed`.
+While the dream runs, the hook overrides `BRIEF_MAX_NEW_CONCLUSIONS` and the two tool-iteration caps from the block. It sets `thinking_effort` and `extra_body.output_config.effort` from that pass's effort, never on a peer card refresh (`none` only on a call that goes to the bridge: Honcho's anthropic transport drops it and its gemini transport would send a `thinking_level` Google does not list, so a direct call keeps the job's own setting), and sets `extra_body.backend`, `extra_body.observer` and `extra_body.observed`.
 
-`policy-used.log` keeps its JSON keys (`max_conclusions`, `reasoning_effort`, `deduction_rounds`, `induction_rounds`) stable, so a log reader can parse the object with `ast.literal_eval`. The line then ends with `mode=<m> backend=<b> gate=<ran|skipped-mode|skipped-disabled|skipped-settings>`. Do not put `true`, `false` or `null` in that JSON.
+`policy-used.log` keeps its JSON keys (`max_conclusions`, `deduction_effort`, `induction_effort`, `deduction_rounds`, `induction_rounds`) stable, so a log reader can parse the object with `ast.literal_eval`. The line then ends with `mode=<m> backend=<b> gate=<ran|skipped-mode|skipped-disabled|skipped-settings>`. Do not put `true`, `false` or `null` in that JSON.
 
 ## Rerank per dream
 

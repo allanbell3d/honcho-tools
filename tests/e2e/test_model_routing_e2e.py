@@ -75,7 +75,7 @@ def free_port() -> int:
 def sample_settings() -> dict:
     return {
         "mode": "stock",
-        "defaults": {"brief": 50, "effort": "medium", "deduction_rounds": 4, "induction_rounds": 4, "backend": None},
+        "defaults": {"brief": 50, "deduction_effort": "medium", "induction_effort": "medium", "deduction_rounds": 4, "induction_rounds": 4, "backend": None},
         "peers": {}, "pairs": {},
         "scheduler": {"poll_seconds": 60, "max_parallel": 1, "dream_type": "omni", "skip": []},
         "providers": {
