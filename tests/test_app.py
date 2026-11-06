@@ -1813,7 +1813,9 @@ def test_runs_join_telemetry_by_run_id(client, tmp_path):
         {"type": "rerank.call.completed", "data": {"run_id": "one", "outcome": "noop_single", "tokens": 0, "candidates_sent": 0}},
         {"type": "rerank.call.completed", "data": {"run_id": "one", "outcome": "future_outcome", "tokens": 20, "candidates_sent": 5, "duration_ms": 42}},
         {"type": "rerank.call.completed", "data": {"run_id": "other", "outcome": "reranked", "tokens": 999}},
-        {"type": "dream.run", "data": {"run_id": "one", "total_duration_ms": 100, "conclusions_created": 3}},
+        {"type": "dream.run", "data": {"run_id": "one", "total_duration_ms": 100}},
+        {"type": "dream.specialist", "data": {"run_id": "one", "specialist_type": "deduction", "duration_ms": 60, "created_observation_count": 2}},
+        {"type": "dream.specialist", "data": {"run_id": "one", "specialist_type": "induction", "duration_ms": 40, "created_observation_count": 1}},
         {"id": "actual", "type": "llm.call.completed", "data": {"run_id": "one", "call_purpose": "dream_deduction", "model": "deepseek-chat", "backend": "deepseek", "billing_route": "api", "routing_evidence": "bridge_response"}},
         {"id": "actual", "type": "llm.call.completed", "data": {"run_id": "one", "model": "duplicate"}},
         {"type": "llm.call.completed", "data": {"run_id": "two", "model": "stage-route"}},
@@ -1826,6 +1828,7 @@ def test_runs_join_telemetry_by_run_id(client, tmp_path):
     assert rows["one"]["rerank_stats"]["duration_ms"]["p50"] == 42
     assert rows["one"]["dream"]["duration_ms"] == 100
     assert rows["one"]["dream"]["conclusions_created"] == 3
+    assert rows["two"]["dream"]["conclusions_created"] is None
     assert rows["two"]["dream"]["duration_ms"] is None
     assert rows["one"]["observed_models"] == [{"stage": "dream_deduction", "model": "deepseek-chat", "backend": "deepseek", "billing_route": "api", "evidence": "bridge_response", "calls": 1}]
     assert rows["two"]["observed_models"][0]["backend"] == "unknown"

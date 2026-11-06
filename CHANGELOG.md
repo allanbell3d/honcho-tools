@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.3 — 2026-11-06
+
+- Runs page: Conclusions created shows the real count, the sum of Honcho's `created_observation_count` over the dream's passes. It always said "unknown" because the page read a field Honcho never sends.
+
 ## v0.1.2 — 2026-11-06
 
 - Models page: the Dream deduction, Dream induction and Peer card refresh rows have their effort dropdown back; it had been replaced by a note that hid the stored effort. Peers and Pairs can still override the two dream rows, and a note there says so.

@@ -2868,9 +2868,8 @@ def get_runs(pair: str = "", date: str = ""):
                         dream = dreams[run_id]
                         if kind == "dream.run":
                             dream["duration_ms"] = _finite_number(data.get("total_duration_ms"))
-                            dream["conclusions_created"] = _finite_int(data.get("conclusions_created"))
                         else:
-                            dream["specialists"].append({"type": public(data.get("specialist_type")), "duration_ms": _finite_number(data.get("duration_ms")), "conclusions_created": _finite_int(data.get("conclusions_created"))})
+                            dream["specialists"].append({"type": public(data.get("specialist_type")), "duration_ms": _finite_number(data.get("duration_ms")), "conclusions_created": _finite_int(data.get("created_observation_count"))})
             except (OSError, EOFError, zlib.error):
                 errors.append(path.name)
     costs = cost_stats(date)
@@ -2878,6 +2877,9 @@ def get_runs(pair: str = "", date: str = ""):
         row["observed_models"] = list(observed[run_id].values())
         row["rerank_stats"] = periods[run_id].view()
         row["dream"] = dreams[run_id]
+        # Honcho counts per dream pass; dream.run carries no total.
+        created = [item["conclusions_created"] for item in dreams[run_id]["specialists"] if item["conclusions_created"] is not None]
+        row["dream"]["conclusions_created"] = sum(created) if created else None
         row["cost"] = costs["by_run"].get(json.dumps([row.get("workspace_name"), run_id]))
     return {"runs": sorted(rows.values(), key=lambda row: row["started"], reverse=True), "errors": errors,
             "truncated": bool(budget.truncated) or (log.is_file() and log.stat().st_size > 256000), "days": days}
